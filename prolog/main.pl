@@ -24,6 +24,14 @@ start :-
     write('The yellow wallpaper, the buzzing lights...'), nl,
     write('Find the Manila Room and escape!'), nl,
     nl,
+    write('--- Available Commands ---'), nl,
+    write('move(Direction)  - Move in a direction (north, south, east, west)'), nl,
+    write('take(Item)       - Pick up an item'), nl,
+    write('drop(Item)       - Drop an item you are holding'), nl,
+    write('use(Item)        - Use an item'), nl,
+    write('look             - Look around and see your current location'), nl,
+    write('quit             - Exit the game'), nl,
+    nl,
     init_game_state,
     game_loop.
 

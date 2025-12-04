@@ -1,0 +1,27 @@
+{
+  "name": "Liminal Logic Dev Container",
+  "dockerComposeFile": "docker-compose.dev.yml",
+  "service": "game-dev",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "arthurwang.vsc-prolog",
+        "redhat.java",
+        "vscjava.vscode-java-pack"
+      ],
+      "settings": {
+        "files.watcherExclude": {
+          "**/.git/objects/**": true,
+          "**/.git/subtree-cache/**": true,
+          "**/node_modules/**": true
+        }
+      }
+    }
+  },
+  "forwardPorts": [],
+  "postCreateCommand": "echo '开发容器已就绪！使用 swipl -s prolog/main.pl -g start 启动游戏'",
+  "remoteUser": "root"
+}
+

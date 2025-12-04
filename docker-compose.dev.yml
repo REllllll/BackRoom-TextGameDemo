@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # 开发模式：交互式容器，不自动启动游戏
+  game-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.game
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: localhost,127.0.0.1
+    container_name: liminal-logic-game-dev
+    volumes:
+      - .:/workspace
+      - pddl4j-cache:/root/.gradle
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    # 开发模式：启动 bash shell 而不是直接运行游戏
+    command: /bin/bash
+    networks:
+      - liminal-network
+    # 保持容器运行，即使没有命令
+    restart: unless-stopped
+    # 端口映射：将容器的 8080 端口映射到主机的 8081 端口
+    # 绑定到 0.0.0.0 以允许外部访问
+    # 如果主机 8080 端口被占用，可以使用其他端口，如 8081
+    ports:
+      - "0.0.0.0:8081:8080"  # 主机IP:主机端口:容器端口
+
+networks:
+  liminal-network:
+    driver: bridge
+
+volumes:
+  pddl4j-cache:
+    driver: local
+

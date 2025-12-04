@@ -6,9 +6,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.game
+      # 代理配置（可选，如果代理不可用可以注释掉或留空）
+      # 注意：如果代理只监听 127.0.0.1，容器无法访问，需要配置代理监听 0.0.0.0:7890
       args:
-        HTTP_PROXY: http://host.docker.internal:7890
-        HTTPS_PROXY: http://host.docker.internal:7890
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
         NO_PROXY: localhost,127.0.0.1
     container_name: liminal-logic-game
     volumes:

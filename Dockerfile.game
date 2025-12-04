@@ -4,26 +4,52 @@
 # 第一阶段：构建 PDDL4J
 FROM gradle:8-jdk17 AS pddl4j-builder
 
+# 接收代理设置作为构建参数（可选）
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+
 # 安装必要的工具
 RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# 克隆 PDDL4J 仓库
+# 克隆 PDDL4J 仓库（尝试使用代理，失败则直接克隆）
 WORKDIR /tmp
-RUN git clone https://github.com/pellierd/pddl4j.git
+RUN if [ -n "$HTTP_PROXY" ] && [ -n "$HTTPS_PROXY" ]; then \
+        echo "尝试使用代理克隆..." && \
+        export HTTP_PROXY="$HTTP_PROXY" && \
+        export HTTPS_PROXY="$HTTPS_PROXY" && \
+        git config --global http.proxy "$HTTP_PROXY" && \
+        git config --global https.proxy "$HTTPS_PROXY" && \
+        (git clone https://github.com/pellierd/pddl4j.git || \
+         (echo "代理克隆失败，尝试直接克隆..." && \
+          git config --global --unset http.proxy && \
+          git config --global --unset https.proxy && \
+          unset HTTP_PROXY HTTPS_PROXY && \
+          git clone https://github.com/pellierd/pddl4j.git)); \
+    else \
+        echo "直接克隆（未配置代理）..." && \
+        git clone https://github.com/pellierd/pddl4j.git; \
+    fi
 
 # 构建 PDDL4J
 WORKDIR /tmp/pddl4j
-RUN ./gradlew jar
+# 使用系统 gradle（来自基础镜像）而不是 wrapper，避免版本冲突
+RUN gradle jar --no-daemon
 
 # 第二阶段：创建最终镜像（SWI-Prolog + PDDL4J）
 FROM swipl:latest
 
-# 安装 Java（用于运行 PDDL4J）
+# 安装 Java 和开发工具
 RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
     curl \
+    vim \
+    nano \
+    git \
+    less \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置 Java 环境变量

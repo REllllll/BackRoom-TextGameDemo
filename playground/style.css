@@ -1,0 +1,405 @@
+/* ============================================================================
+   全局样式
+   ============================================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* ============================================================================
+   头部样式
+   ============================================================================ */
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+header h1 {
+    color: #ffd700;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.subtitle {
+    color: #b0b0b0;
+    font-size: 1.1em;
+}
+
+/* ============================================================================
+   游戏布局
+   ============================================================================ */
+
+.game-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    height: calc(100vh - 200px);
+}
+
+.left-panel, .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ============================================================================
+   面板通用样式
+   ============================================================================ */
+
+.status-panel, .room-panel, .command-panel, .map-panel, .log-panel {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.status-panel h2, .room-panel h2, .command-panel h2, .map-panel h2, .log-panel h2 {
+    color: #ffd700;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+    border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+    padding-bottom: 10px;
+}
+
+/* ============================================================================
+   状态面板
+   ============================================================================ */
+
+.status-item {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.label {
+    font-weight: bold;
+    color: #b0b0b0;
+    min-width: 100px;
+}
+
+.value {
+    color: #fff;
+    font-weight: 500;
+}
+
+.sanity-bar {
+    flex: 1;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-left: 10px;
+}
+
+.sanity-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50 0%, #8bc34a 50%, #ff9800 80%, #f44336 100%);
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+/* ============================================================================
+   房间面板
+   ============================================================================ */
+
+#room-description {
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+#room-exits, #room-items {
+    margin-top: 10px;
+}
+
+.exit-item, .item-item {
+    display: inline-block;
+    background: rgba(255, 215, 0, 0.2);
+    padding: 5px 10px;
+    margin: 5px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+/* ============================================================================
+   命令面板
+   ============================================================================ */
+
+.command-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#command-input {
+    flex: 1;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    color: #fff;
+    font-size: 1em;
+}
+
+#command-input:focus {
+    outline: none;
+    border-color: #ffd700;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+#execute-btn {
+    padding: 12px 24px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+#execute-btn:hover {
+    background: #45a049;
+}
+
+#execute-btn:active {
+    transform: scale(0.98);
+}
+
+.command-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.cmd-btn {
+    padding: 8px 16px;
+    background: rgba(255, 215, 0, 0.2);
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s;
+}
+
+.cmd-btn:hover {
+    background: rgba(255, 215, 0, 0.3);
+    border-color: rgba(255, 215, 0, 0.5);
+}
+
+.cmd-btn:active {
+    transform: scale(0.95);
+}
+
+.game-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.control-btn {
+    flex: 1;
+    padding: 10px;
+    background: rgba(33, 150, 243, 0.3);
+    color: #81d4fa;
+    border: 1px solid rgba(33, 150, 243, 0.5);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s;
+}
+
+.control-btn:hover {
+    background: rgba(33, 150, 243, 0.4);
+}
+
+/* ============================================================================
+   地图面板
+   ============================================================================ */
+
+.map-panel {
+    flex: 1;
+    min-height: 300px;
+}
+
+#map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+#map-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.room-node {
+    fill: rgba(255, 255, 255, 0.2);
+    stroke: rgba(255, 255, 255, 0.4);
+    stroke-width: 2;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.room-node:hover {
+    fill: rgba(255, 255, 255, 0.3);
+    stroke: rgba(255, 215, 0, 0.6);
+}
+
+.room-node.current {
+    fill: #4caf50;
+    stroke: #8bc34a;
+    stroke-width: 3;
+}
+
+.room-node.entity {
+    fill: #f44336;
+    stroke: #ff9800;
+    stroke-width: 3;
+}
+
+.room-node.dark {
+    fill: rgba(0, 0, 0, 0.5);
+    stroke: rgba(100, 100, 100, 0.6);
+}
+
+.room-node.exit {
+    fill: rgba(255, 215, 0, 0.3);
+    stroke: #ffd700;
+}
+
+.room-label {
+    font-size: 12px;
+    fill: #fff;
+    text-anchor: middle;
+    pointer-events: none;
+    font-weight: bold;
+}
+
+.connection-line {
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 2;
+    fill: none;
+}
+
+/* ============================================================================
+   日志面板
+   ============================================================================ */
+
+.log-panel {
+    flex: 1;
+    min-height: 200px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+#game-log {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+.log-entry {
+    margin-bottom: 8px;
+    padding: 5px;
+    border-left: 3px solid rgba(255, 255, 255, 0.3);
+    padding-left: 10px;
+}
+
+.log-entry.info {
+    border-left-color: #2196f3;
+    color: #81d4fa;
+}
+
+.log-entry.success {
+    border-left-color: #4caf50;
+    color: #8bc34a;
+}
+
+.log-entry.warning {
+    border-left-color: #ff9800;
+    color: #ffb74d;
+}
+
+.log-entry.error {
+    border-left-color: #f44336;
+    color: #ef5350;
+}
+
+.log-entry.command {
+    border-left-color: #ffd700;
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* ============================================================================
+   响应式设计
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+    .game-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+    
+    .left-panel, .right-panel {
+        height: auto;
+    }
+}
+
+/* ============================================================================
+   滚动条样式
+   ============================================================================ */
+
+#game-log::-webkit-scrollbar {
+    width: 8px;
+}
+
+#game-log::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+#game-log::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+#game-log::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+

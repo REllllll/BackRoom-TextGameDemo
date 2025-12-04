@@ -12,7 +12,13 @@
     generate_pddl_problem/1,
     call_pddl_planner/2,
     update_entity_from_pddl/0,
-    parse_plan_result/2
+    parse_plan_result/2,
+    pddl_planner_command/1,
+    pddl_domain_path/1,
+    pddl_problem_path/1,
+    pddl_plan_path/1,
+    get_pddl_path/2,
+    project_root/1
 ]).
 
 :- use_module(game_state).
@@ -38,11 +44,20 @@ pddl_plan_path('pddl/problems/plan.txt').
 pddl_planner_command('ff').
 
 % 获取项目根目录的绝对路径
+% 基于 pddl_interface.pl 的位置计算，确保无论从哪里调用都能正确获取
 project_root(Root) :-
-    prolog_load_context(file, CurrentFile),
-    absolute_file_name(CurrentFile, AbsFile),
-    file_directory_name(AbsFile, PrologDir),
-    file_directory_name(PrologDir, Root).
+    % 使用 source_file 获取模块文件路径（最可靠的方法）
+    (source_file(pddl_interface:project_root(_), ModuleFile) ->
+        absolute_file_name(ModuleFile, AbsFile),
+        file_directory_name(AbsFile, PrologDir),
+        file_directory_name(PrologDir, Root)
+    ;
+        % 备用方法：基于当前文件上下文
+        prolog_load_context(file, CurrentFile),
+        absolute_file_name(CurrentFile, AbsFile),
+        file_directory_name(AbsFile, PrologDir),
+        file_directory_name(PrologDir, Root)
+    ).
 
 % 获取 PDDL 文件的绝对路径
 get_pddl_path(RelativePath, AbsolutePath) :-
@@ -157,7 +172,7 @@ write_connections(Stream) :-
     findall(From-To, connect(From, _, To), Connections),
     write_connection_pairs(Stream, Connections).
 
-write_connection_pairs(Stream, []).
+write_connection_pairs(_Stream, []).
 write_connection_pairs(Stream, [From-To|Rest]) :-
     write(Stream, '    (connected '), write(Stream, From), write(Stream, ' '), 
     write(Stream, To), write(Stream, ')'), nl(Stream),
@@ -255,7 +270,8 @@ filter_action_lines([Line|Rest], Filtered) :-
     (Line = end_of_file ->
         Filtered = []
     ;
-        string_trim(Line, ' ', Trimmed),
+        % 修剪字符串两端的空白字符
+        trim_string(Line, Trimmed),
         (is_action_line(Trimmed) ->
             Filtered = [Trimmed|RestFiltered]
         ;
@@ -289,7 +305,7 @@ parse_action_line(Line, action(Name, Args)) :-
     exclude(==('('), Chars, Chars1),
     exclude(==(')'), Chars1, Chars2),
     string_chars(Trimmed, Chars2),
-    string_trim(Trimmed, ' ', FinalTrimmed),
+    trim_string(Trimmed, FinalTrimmed),
     split_string(FinalTrimmed, ' ', ' ', Parts),
     Parts = [NameStr|ArgStrs],
     (ArgStrs = [] ->
@@ -348,9 +364,33 @@ exists_file(File) :-
     access_file(File, read).
 
 % ----------------------------------------------------------------------------
-% 辅助函数：字符串处理（使用 SWI-Prolog 内置函数）
+% 辅助函数：字符串处理
 % ----------------------------------------------------------------------------
 
-% string_trim 在 SWI-Prolog 中已内置，但为了兼容性，我们使用标准方法
-% 实际上 SWI-Prolog 的 string_trim/3 可以直接使用
+% 修剪字符串两端的空白字符
+% 使用 normalize_space 来标准化空白字符，然后手动移除首尾空白
+trim_string(String, Trimmed) :-
+    % 先标准化空白字符（将多个连续空白替换为单个空格）
+    normalize_space(string(Normalized), String),
+    % 移除首尾空白
+    string_chars(Normalized, Chars),
+    trim_chars_left(Chars, Chars1),
+    trim_chars_right(Chars1, TrimmedChars),
+    string_chars(Trimmed, TrimmedChars).
+
+% 移除左侧空白字符
+trim_chars_left([], []).
+trim_chars_left([H|T], Result) :-
+    (char_type(H, space) ->
+        trim_chars_left(T, Result)
+    ;
+        Result = [H|T]
+    ).
+
+% 移除右侧空白字符
+trim_chars_right([], []).
+trim_chars_right(List, Result) :-
+    reverse(List, Reversed),
+    trim_chars_left(Reversed, TrimmedReversed),
+    reverse(TrimmedReversed, Result).
 

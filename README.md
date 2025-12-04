@@ -75,7 +75,61 @@ Knowledge Representation/
 
 ## 使用方法
 
-### 快速开始
+### 方式一：使用 Docker 开发容器（推荐）
+
+Docker 容器已包含所有依赖（SWI-Prolog 和 PDDL4J），无需本地安装。
+
+#### 快速开始
+
+1. **启动开发容器**
+   ```bash
+   # 使用便捷脚本
+   ./scripts/dev.sh start
+   
+   # 或使用 docker-compose
+   docker-compose -f docker-compose.dev.yml up -d --build
+   ```
+
+2. **进入容器进行开发**
+   ```bash
+   # 使用便捷脚本
+   ./scripts/dev.sh shell
+   
+   # 或使用 docker-compose
+   docker-compose -f docker-compose.dev.yml exec game-dev bash
+   ```
+
+3. **在容器内运行游戏**
+   ```bash
+   swipl -s prolog/main.pl -g start
+   ```
+
+#### 开发工作流
+
+```bash
+# 启动容器
+./scripts/dev.sh start
+
+# 进入容器
+./scripts/dev.sh shell
+
+# 在容器内编辑和测试
+vim prolog/game_logic.pl          # 编辑文件
+swipl -s prolog/main.pl -g start  # 测试游戏
+ff -o pddl/domains/... -f ...     # 测试 PDDL 规划器
+
+# 查看日志
+./scripts/dev.sh logs
+
+# 停止容器
+./scripts/dev.sh stop
+```
+
+**注意**：项目目录已挂载到容器，在主机上的修改会立即同步到容器内。
+
+更多 Docker 使用说明请参考 [DOCKER.md](DOCKER.md)。
+
+### 方式二：本地安装
 
 1. 确保已安装 SWI-Prolog
 
@@ -180,6 +234,27 @@ You drink the almond water. Your sanity increases.
 详细说明请参考 `docs/pddl_integration.md`。
 
 **注意**：需要安装 PDDL 规划器（如 Fast-Forward）才能使用实体 AI 功能。如果未安装规划器，实体将保持原位置。
+
+### 检查 PDDL 环境
+
+要检查 PDDL 环境是否正常运行并接入到 Prolog 中，可以使用测试脚本：
+
+```bash
+# 快速检查（推荐）
+./scripts/test_pddl.sh
+
+# 或使用 Prolog 测试脚本
+swipl -s scripts/test_pddl_integration.pl -g test_pddl_integration -t halt
+```
+
+测试脚本会检查：
+- PDDL 规划器是否安装
+- PDDL 文件是否存在
+- 能否生成 problem 文件
+- 能否调用规划器并解析结果
+- 完整的集成流程
+
+详细说明请参考 `docs/pddl_testing.md`。
 
 ## 技术亮点
 
