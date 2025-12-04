@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # 统一的游戏服务（包含 SWI-Prolog 和 PDDL4J）
+  game:
+    build:
+      context: .
+      dockerfile: Dockerfile.game
+      args:
+        HTTP_PROXY: http://host.docker.internal:7890
+        HTTPS_PROXY: http://host.docker.internal:7890
+        NO_PROXY: localhost,127.0.0.1
+    container_name: liminal-logic-game
+    volumes:
+      - .:/workspace
+      - pddl4j-cache:/root/.gradle
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: swipl -s prolog/main.pl -g start
+    networks:
+      - liminal-network
+   
+
+networks:
+  liminal-network:
+    driver: bridge
+
+volumes:
+  pddl4j-cache:
+    driver: local
+

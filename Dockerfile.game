@@ -1,0 +1,87 @@
+# 统一的游戏 Dockerfile
+# 包含 SWI-Prolog 和 PDDL4J
+
+# 第一阶段：构建 PDDL4J
+FROM gradle:8-jdk17 AS pddl4j-builder
+
+# 安装必要的工具
+RUN apt-get update && apt-get install -y \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 克隆 PDDL4J 仓库
+WORKDIR /tmp
+RUN git clone https://github.com/pellierd/pddl4j.git
+
+# 构建 PDDL4J
+WORKDIR /tmp/pddl4j
+RUN ./gradlew jar
+
+# 第二阶段：创建最终镜像（SWI-Prolog + PDDL4J）
+FROM swipl:latest
+
+# 安装 Java（用于运行 PDDL4J）
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置 Java 环境变量
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$PATH:$JAVA_HOME/bin
+
+# 从构建阶段复制 PDDL4J jar 文件
+COPY --from=pddl4j-builder /tmp/pddl4j/build/libs/pddl4j-*.jar /opt/pddl4j/pddl4j.jar
+
+# 创建 FF 规划器包装脚本（Fast Forward）
+# 支持 Fast-Forward 原始格式: ff -o DOMAIN -f PROBLEM
+# 也支持 PDDL4J 格式: ff DOMAIN PROBLEM
+RUN echo '#!/bin/bash\n\
+# 解析参数\n\
+DOMAIN=""\n\
+PROBLEM=""\n\
+OUTPUT=""\n\
+\n\
+while [[ $# -gt 0 ]]; do\n\
+  case $1 in\n\
+    -o)\n\
+      DOMAIN="$2"\n\
+      shift 2\n\
+      ;;\n\
+    -f)\n\
+      PROBLEM="$2"\n\
+      shift 2\n\
+      ;;\n\
+    -*)\n\
+      shift\n\
+      ;;\n\
+    *)\n\
+      if [ -z "$DOMAIN" ]; then\n\
+        DOMAIN="$1"\n\
+      elif [ -z "$PROBLEM" ]; then\n\
+        PROBLEM="$1"\n\
+      fi\n\
+      shift\n\
+      ;;\n\
+  esac\n\
+done\n\
+\n\
+# 检查参数\n\
+if [ -z "$DOMAIN" ] || [ -z "$PROBLEM" ]; then\n\
+  echo "Usage: ff -o DOMAIN -f PROBLEM" >&2\n\
+  echo "   or: ff DOMAIN PROBLEM" >&2\n\
+  exit 1\n\
+fi\n\
+\n\
+# 运行 PDDL4J FF 规划器\n\
+java -cp /opt/pddl4j/pddl4j.jar fr.uga.pddl4j.planners.statespace.FF "$DOMAIN" "$PROBLEM"\n\
+exit $?\n\
+' > /usr/local/bin/ff && chmod +x /usr/local/bin/ff
+
+# 创建通用的 PDDL4J 调用脚本
+RUN echo '#!/bin/bash\n\
+java -cp /opt/pddl4j/pddl4j.jar "$@"\n\
+' > /usr/local/bin/pddl4j && chmod +x /usr/local/bin/pddl4j
+
+WORKDIR /workspace
+
