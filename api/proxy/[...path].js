@@ -15,10 +15,25 @@ export default async function handler(req, res) {
   const pathSegments = Array.isArray(path) ? path.join('/') : (path || '');
   const targetUrl = `${backendUrl}/api/${pathSegments}`;
   
-  // 处理查询参数
-  const queryString = new URLSearchParams(req.query).toString();
-  const fullUrl = queryString 
-    ? `${targetUrl}?${queryString.replace(/path=.*?(&|$)/g, '').replace(/&$/, '')}`
+  // 处理查询参数（排除 path 参数，因为它是路由参数）
+  // 使用显式过滤而不是正则表达式，避免错误匹配其他参数值中包含 "path=" 的情况
+  const queryParams = new URLSearchParams();
+  Object.keys(req.query).forEach(key => {
+    if (key !== 'path') {
+      const value = req.query[key];
+      if (Array.isArray(value)) {
+        value.forEach(v => queryParams.append(key, v));
+      } else {
+        queryParams.append(key, value);
+      }
+    }
+  });
+  
+  // 获取查询字符串（如果所有参数都被过滤掉，toString() 会返回空字符串）
+  const queryString = queryParams.toString();
+  // 只有在查询字符串非空时才添加 ?，避免生成形如 http://example.com/api/test? 的无效 URL
+  const fullUrl = queryString && queryString.length > 0 
+    ? `${targetUrl}?${queryString}` 
     : targetUrl;
   
   try {
