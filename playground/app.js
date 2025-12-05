@@ -511,10 +511,9 @@ function calculateRoomPositions(mapData) {
         }
     });
     
-    // 翻转 y 坐标以修复上下颠倒问题（SVG 坐标系中 y 向下为正，但地图中 north 应该在上）
-    Object.keys(positions).forEach(room => {
-        positions[room].y = svgHeight - positions[room].y;
-    });
+    // 不再手动翻转 y 坐标，而是通过 SVG transform 来正确处理坐标系
+    // SVG 坐标系中 y 向下为正，但地图中 north 应该在上方
+    // 我们保持计算逻辑不变（north = y 减小），这样在 SVG 中 north 自然在上方
     
     return positions;
 }
