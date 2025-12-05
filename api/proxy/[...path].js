@@ -15,21 +15,11 @@ export default async function handler(req, res) {
   const pathSegments = Array.isArray(path) ? path.join('/') : (path || '');
   const targetUrl = `${backendUrl}/api/${pathSegments}`;
   
-  // 处理查询参数（排除 path 参数，因为它是路由参数）
-  const queryParams = new URLSearchParams();
-  Object.keys(req.query).forEach(key => {
-    if (key !== 'path') {
-      const value = req.query[key];
-      if (Array.isArray(value)) {
-        value.forEach(v => queryParams.append(key, v));
-      } else {
-        queryParams.append(key, value);
-      }
-    }
-  });
-  
-  const queryString = queryParams.toString();
-  const fullUrl = queryString ? `${targetUrl}?${queryString}` : targetUrl;
+  // 处理查询参数
+  const queryString = new URLSearchParams(req.query).toString();
+  const fullUrl = queryString 
+    ? `${targetUrl}?${queryString.replace(/path=.*?(&|$)/g, '').replace(/&$/, '')}`
+    : targetUrl;
   
   try {
     // 准备请求选项
@@ -79,4 +69,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
