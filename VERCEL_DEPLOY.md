@@ -125,25 +125,71 @@ window.__ENV__ = { API_URL: 'https://your-backend-server.com' };
 - Serverless Function 是否正确设置了 CORS 头
 - 后端服务器是否允许来自 Vercel 域名的请求
 
-### 2. 502 Bad Gateway
+### 2. "fetch failed" 或 "Proxy error" 错误
+
+这是最常见的错误，可能原因和解决方法：
+
+#### 检查环境变量
+1. 进入 Vercel 项目设置 → Environment Variables
+2. 确认 `BACKEND_URL` 已设置
+3. 确认格式正确：`http://your-server.com:8080`（不要包含 `/api` 路径）
+4. 重新部署项目（环境变量更改后需要重新部署）
+
+#### 检查后端服务器
+1. **服务器是否运行**：
+   ```bash
+   # 在服务器上检查
+   curl http://localhost:8080/api/status
+   ```
+
+2. **服务器是否可以从外部访问**：
+   ```bash
+   # 从其他机器测试
+   curl http://your-server-ip:8080/api/status
+   ```
+
+3. **防火墙设置**：
+   - 确保后端服务器的端口（如 8080）已开放
+   - 检查云服务器安全组规则
+   - 检查服务器防火墙（ufw, firewalld, iptables）
+
+4. **网络连通性**：
+   - Vercel 服务器需要能够访问你的后端服务器
+   - 如果后端在内网，需要使用内网穿透或 VPN
+   - 确保后端服务器有公网 IP 或通过其他方式可访问
+
+#### 检查错误响应
+代理函数现在会返回更详细的错误信息，包括：
+- `backendUrl`: 配置的后端地址
+- `targetUrl`: 实际请求的完整 URL
+- `hint`: 错误提示信息
+
+查看 Vercel Function 日志：
+1. 进入 Vercel 项目 → Functions 标签
+2. 查看 `/api/proxy` 函数的日志
+3. 查找错误详情和请求的 URL
+
+### 3. 502 Bad Gateway
 
 可能原因：
 - `BACKEND_URL` 环境变量未设置或格式错误
 - 后端服务器无法访问（防火墙、网络问题）
 - 后端服务器未运行
 
-### 3. 404 Not Found
+### 4. 404 Not Found
 
 检查：
 - `vercel.json` 路由配置是否正确
 - API 路径是否正确（应该是 `/api/proxy/...`）
+- 后端服务器的 API 路径是否正确（应该是 `/api/...`）
 
-### 4. 超时
+### 5. 超时
 
 如果请求超时，可能是：
 - 后端服务器响应慢
 - 网络延迟
 - Vercel Function 超时（默认 10 秒，Pro 计划可延长）
+- 代理函数设置了 20 秒超时，如果后端响应很慢可能会超时
 
 ## 安全建议
 
