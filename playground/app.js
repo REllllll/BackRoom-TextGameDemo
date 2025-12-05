@@ -4,11 +4,32 @@
 // 前端 JavaScript 逻辑：与 Prolog HTTP server 交互
 // ============================================================================
 
-// API 地址：通过 nginx 代理访问，使用相对路径
-// nginx 会将 /api 请求代理到 8081 端口的 prolog server
+// API 地址配置
+// - 本地开发：使用相对路径 /api（通过 nginx 代理）
+// - Vercel 部署：使用 /api/proxy（通过 Vercel Serverless Function 代理到后端）
+// - 直接连接：使用环境变量或直接指定后端地址
 const getApiBase = () => {
-    // 使用相对路径，让 nginx 处理代理
-    return '/api';
+    // 检查是否在 Vercel 环境（通过 hostname 判断）
+    const hostname = window.location.hostname;
+    const isVercel = hostname.includes('vercel.app') || hostname.includes('vercel.dev');
+    
+    // 检查是否有环境变量配置的后端地址（通过全局变量或 meta 标签）
+    const envApiUrl = window.__ENV__?.API_URL || 
+                      document.querySelector('meta[name="api-url"]')?.getAttribute('content');
+    
+    if (envApiUrl) {
+        // 如果配置了环境变量，直接使用
+        return envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl}/api`;
+    } else if (isVercel) {
+        // Vercel 环境：使用 Serverless Function 代理
+        return '/api/proxy';
+    } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // 本地开发：使用相对路径，通过 nginx 代理
+        return '/api';
+    } else {
+        // 其他环境：默认使用相对路径
+        return '/api';
+    }
 };
 
 const API_BASE = getApiBase();
@@ -80,8 +101,12 @@ function setupEventListeners() {
         }
     });
     
-    // 快捷命令按钮
+    // 快捷命令按钮（排除拾取物品按钮，因为它需要特殊处理）
     document.querySelectorAll('.cmd-btn').forEach(btn => {
+        // 跳过拾取物品按钮，它需要特殊处理
+        if (btn.id === 'take-item-btn') {
+            return;
+        }
         btn.addEventListener('click', () => {
             const cmd = btn.getAttribute('data-cmd');
             if (cmd) {

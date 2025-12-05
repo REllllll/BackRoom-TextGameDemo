@@ -55,12 +55,14 @@ connect(the_hub, south, electrical_room).
 
 % 电气室
 connect(electrical_room, north, the_hub).
+connect(electrical_room, west, supply_closet).
 
 % 马尼拉房间（出口）
 connect(manila_room, west, the_hub).
 
 % 储藏室
 connect(supply_closet, north, yellow_hallway).
+connect(supply_closet, east, electrical_room).
 
 % ----------------------------------------------------------------------------
 % 房间属性 (Room Properties)
