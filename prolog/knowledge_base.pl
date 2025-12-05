@@ -10,6 +10,7 @@
     connect/3,
     is_dark/1,
     is_exit/1,
+    requires_key/1,
     item/1,
     item_property/2
 ]).
@@ -50,10 +51,10 @@ connect(dead_end, west, dark_corridor).
 % 中心枢纽
 connect(the_hub, west, yellow_hallway).
 connect(the_hub, east, manila_room).
-connect(the_hub, north, electrical_room).
+connect(the_hub, south, electrical_room).
 
 % 电气室
-connect(electrical_room, south, the_hub).
+connect(electrical_room, north, the_hub).
 
 % 马尼拉房间（出口）
 connect(manila_room, west, the_hub).
@@ -71,6 +72,9 @@ is_dark(dead_end).
 
 % 出口房间
 is_exit(manila_room).
+
+% 需要钥匙的房间
+requires_key(manila_room).
 
 % 危险区域（实体经常巡逻）
 % is_dangerous(the_hub).

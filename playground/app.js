@@ -4,13 +4,11 @@
 // 前端 JavaScript 逻辑：与 Prolog HTTP server 交互
 // ============================================================================
 
-// 自动检测 API 地址：如果从远程访问，使用当前主机地址
-// 如果从本地访问，使用 localhost
+// API 地址：通过 nginx 代理访问，使用相对路径
+// nginx 会将 /api 请求代理到 8081 端口的 prolog server
 const getApiBase = () => {
-    // 如果当前页面是通过 IP 地址访问的，使用相同的 IP
-    const hostname = window.location.hostname;
-    const port = window.location.port || '8081'; // 默认使用映射后的端口
-    return `http://${hostname}:${port}/api`;
+    // 使用相对路径，让 nginx 处理代理
+    return '/api';
 };
 
 const API_BASE = getApiBase();
@@ -23,7 +21,8 @@ let gameState = {
     player_location: null,
     entity_location: null,
     sanity: 100,
-    holding: null,
+    holding: [],
+    items_here: [],
     game_status: 'playing'
 };
 
@@ -85,10 +84,18 @@ function setupEventListeners() {
     document.querySelectorAll('.cmd-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const cmd = btn.getAttribute('data-cmd');
-            elements.commandInput.value = cmd;
-            executeCommand();
+            if (cmd) {
+                elements.commandInput.value = cmd;
+                executeCommand();
+            }
         });
     });
+    
+    // 拾取物品按钮（特殊处理）
+    const takeItemBtn = document.getElementById('take-item-btn');
+    if (takeItemBtn) {
+        takeItemBtn.addEventListener('click', autoTakeItem);
+    }
     
     // 初始化游戏
     elements.initBtn.addEventListener('click', initGame);
@@ -170,9 +177,11 @@ async function executeCommand() {
             logMessage(result.output, result.success ? 'success' : 'error');
         }
         
+        // 总是更新游戏状态（包括房间信息），无论命令是否成功
+        // 这样进入新房间时能自动刷新状态
+        updateGameState(result);
+        
         if (result.game_status) {
-            updateGameState(result);
-            
             if (result.game_status === 'win') {
                 logMessage('🎉 恭喜！你成功逃脱了！', 'success');
             } else if (result.game_status === 'lose') {
@@ -184,6 +193,60 @@ async function executeCommand() {
         drawMap();
     } catch (error) {
         logMessage(`执行命令失败: ${error.message}`, 'error');
+        // 即使出错也尝试刷新状态
+        try {
+            await refreshGameState();
+        } catch (refreshError) {
+            // 忽略刷新错误
+        }
+    }
+}
+
+// ============================================================================
+// 自动拾取物品
+// ============================================================================
+
+async function autoTakeItem() {
+    // 先刷新状态以确保获取最新的物品信息
+    try {
+        await refreshGameState();
+    } catch (error) {
+        logMessage('无法刷新游戏状态', 'error');
+        return;
+    }
+    
+    // 检查当前房间是否有物品
+    if (!gameState.items_here || gameState.items_here.length === 0) {
+        logMessage('当前房间没有物品可以拾取。', 'info');
+        return;
+    }
+    
+    // 拾取第一个物品
+    const firstItem = gameState.items_here[0];
+    const command = `take(${firstItem})`;
+    
+    logMessage(`> ${command}`, 'command');
+    
+    try {
+        const result = await apiCall('/command', 'POST', { command: command });
+        
+        if (result.output) {
+            logMessage(result.output, result.success ? 'success' : 'error');
+        }
+        
+        // 更新游戏状态
+        updateGameState(result);
+        
+        // 更新地图
+        drawMap();
+    } catch (error) {
+        logMessage(`拾取物品失败: ${error.message}`, 'error');
+        // 即使出错也尝试刷新状态
+        try {
+            await refreshGameState();
+        } catch (refreshError) {
+            // 忽略刷新错误
+        }
     }
 }
 
@@ -192,11 +255,20 @@ async function executeCommand() {
 // ============================================================================
 
 function updateGameState(status) {
+    // 处理 holding 字段：可能是数组或单个值（向后兼容）
+    let holdingItems = status.holding;
+    if (!holdingItems) {
+        holdingItems = [];
+    } else if (!Array.isArray(holdingItems)) {
+        holdingItems = [holdingItems];
+    }
+    
     gameState = {
         player_location: status.player_location || null,
         entity_location: status.entity_location || null,
         sanity: status.sanity || 100,
-        holding: status.holding || null,
+        holding: holdingItems,
+        items_here: status.items_here || [],
         game_status: status.game_status || 'playing'
     };
     
@@ -211,7 +283,11 @@ function updateGameState(status) {
     elements.sanityBarFill.style.width = `${Math.max(0, Math.min(100, gameState.sanity))}%`;
     
     // 更新持有物品
-    elements.holdingItem.textContent = gameState.holding || '无';
+    if (holdingItems.length === 0) {
+        elements.holdingItem.textContent = '无';
+    } else {
+        elements.holdingItem.textContent = holdingItems.join(', ');
+    }
     
     // 更新游戏状态
     const statusText = {
@@ -281,8 +357,8 @@ function drawMap() {
         return;
     }
     
-    // 房间位置（简单的网格布局）
-    const roomPositions = calculateRoomPositions(mapData.rooms);
+    // 房间位置（基于连接关系的自动布局）
+    const roomPositions = calculateRoomPositions(mapData);
     
     // 绘制连接
     if (mapData.connections) {
@@ -323,37 +399,96 @@ function drawMap() {
     });
 }
 
-function calculateRoomPositions(rooms) {
-    // 简单的网格布局算法
+function calculateRoomPositions(mapData) {
+    // 基于连接关系的自动布局算法
     const positions = {};
-    const cols = Math.ceil(Math.sqrt(rooms.length));
+    const rooms = mapData.rooms || [];
+    const connections = mapData.connections || [];
     const spacing = 150;
-    const startX = 100;
-    const startY = 100;
+    const svgHeight = 600; // SVG viewBox 高度
     
-    // 特殊房间的固定位置
-    const specialPositions = {
-        'start_point': { x: 100, y: 300 },
-        'yellow_hallway': { x: 250, y: 300 },
-        'dark_corridor': { x: 250, y: 150 },
-        'dead_end': { x: 400, y: 150 },
-        'the_hub': { x: 400, y: 300 },
-        'electrical_room': { x: 400, y: 450 },
-        'manila_room': { x: 550, y: 300 },
-        'supply_closet': { x: 250, y: 450 }
+    if (rooms.length === 0) {
+        return positions;
+    }
+    
+    // 构建邻接表（从每个房间到其连接的房间和方向）
+    const adjacencyList = {};
+    rooms.forEach(room => {
+        adjacencyList[room] = [];
+    });
+    
+    connections.forEach(conn => {
+        if (adjacencyList[conn.from]) {
+            adjacencyList[conn.from].push({
+                room: conn.to,
+                direction: conn.direction
+            });
+        }
+    });
+    
+    // 方向偏移量（在 SVG 坐标系中，y 向下为正）
+    const directionOffsets = {
+        'north': { x: 0, y: -1 },   // 向上（y 减小）
+        'south': { x: 0, y: 1 },    // 向下（y 增加）
+        'east': { x: 1, y: 0 },     // 向右（x 增加）
+        'west': { x: -1, y: 0 }     // 向左（x 减小）
     };
     
+    // 从起点开始 BFS 布局
+    let startRoom = 'start_point';
+    if (!rooms.includes(startRoom)) {
+        // 如果没有起点，使用第一个房间
+        startRoom = rooms[0];
+    }
+    
+    const queue = [startRoom];
+    const visited = new Set();
+    
+    // 设置起点位置（居中）
+    positions[startRoom] = { x: 400, y: 300 };
+    visited.add(startRoom);
+    
+    // BFS 遍历所有房间
+    while (queue.length > 0) {
+        const currentRoom = queue.shift();
+        const currentPos = positions[currentRoom];
+        
+        // 遍历当前房间的所有连接
+        if (adjacencyList[currentRoom]) {
+            adjacencyList[currentRoom].forEach(neighbor => {
+                const neighborRoom = neighbor.room;
+                const direction = neighbor.direction;
+                
+                // 如果邻居房间还没有位置，计算其位置
+                if (!visited.has(neighborRoom)) {
+                    const offset = directionOffsets[direction] || { x: 0, y: 0 };
+                    positions[neighborRoom] = {
+                        x: currentPos.x + offset.x * spacing,
+                        y: currentPos.y + offset.y * spacing
+                    };
+                    visited.add(neighborRoom);
+                    queue.push(neighborRoom);
+                }
+            });
+        }
+    }
+    
+    // 处理未连接的房间（使用网格布局作为后备）
     rooms.forEach((room, index) => {
-        if (specialPositions[room]) {
-            positions[room] = specialPositions[room];
-        } else {
+        if (!positions[room]) {
+            const cols = Math.ceil(Math.sqrt(rooms.length));
             const row = Math.floor(index / cols);
             const col = index % cols;
             positions[room] = {
-                x: startX + col * spacing,
-                y: startY + row * spacing
+                x: 100 + col * spacing,
+                y: 100 + row * spacing
             };
         }
+    });
+    
+    // 翻转 y 坐标以修复上下颠倒问题（SVG 坐标系中 y 向下为正，但地图中 north 应该在上）
+    Object.keys(positions).forEach(room => {
+        positions[room].y = svgHeight - positions[room].y;
     });
     
     return positions;

@@ -1,7 +1,8 @@
 % ============================================================================
 % http_server.pl
 % ============================================================================
-% HTTP Server 模块：提供 REST API 接口供 HTML playground 使用
+% HTTP Server 模块：提供 REST API 接口
+% 前端由 nginx 提供，此服务器仅负责 API 服务
 % ============================================================================
 
 :- module(game_http_server, [
@@ -14,8 +15,6 @@
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_json)).
 :- use_module(library(http/http_cors)).
-:- use_module(library(http/http_files)).
-:- use_module(library(http/http_path)).
 :- use_module(knowledge_base).
 :- use_module(game_state).
 :- use_module(game_logic).
@@ -29,22 +28,6 @@
 % 默认端口
 default_port(8080).
 
-% Playground 静态文件目录
-playground_dir('playground').
-
-% 获取项目根目录
-project_root(Root) :-
-    (source_file(game_http_server:project_root(_), ModuleFile) ->
-        absolute_file_name(ModuleFile, AbsFile),
-        file_directory_name(AbsFile, PrologDir),
-        file_directory_name(PrologDir, Root)
-    ;
-        prolog_load_context(file, CurrentFile),
-        absolute_file_name(CurrentFile, AbsFile),
-        file_directory_name(AbsFile, PrologDir),
-        file_directory_name(PrologDir, Root)
-    ).
-
 % ----------------------------------------------------------------------------
 % 启动服务器
 % ----------------------------------------------------------------------------
@@ -54,35 +37,24 @@ start_server :-
     start_server(Port).
 
 start_server(Port) :-
-    % 注册路由（API 路由需要在静态文件路由之前）
+    % 注册 API 路由
     http_handler(root(api/status), api_status, [method(get)]),
     http_handler(root(api/init), api_init, [method(post)]),
     http_handler(root(api/command), api_command, [method(post)]),
     http_handler(root(api/map), api_map, [method(get)]),
     http_handler(root(api/rooms), api_room_info, [method(get), prefix]),
-    http_handler(root(.), serve_playground, [prefix]),
     
     % 启动服务器（绑定到 0.0.0.0 以允许外部访问）
     use_module(library(http/http_server)),
     % 使用 Host:Port 格式绑定到所有接口
     Address = '0.0.0.0':Port,
     http_server([port(Address)]),
-    format('HTTP server started on port ~w~n', [Port]),
+    format('API server started on port ~w~n', [Port]),
     format('Server listening on 0.0.0.0:~w~n', [Port]),
-    format('Open http://localhost:~w in your browser (from container)~n', [Port]),
-    format('Or access from host machine via mapped port~n', []),
+    format('API endpoints available at http://0.0.0.0:~w/api/*~n', [Port]),
+    format('Frontend should be served by nginx~n', []),
     % 保持服务器运行
     thread_get_message(_).
-
-% ----------------------------------------------------------------------------
-% 静态文件服务（Playground）
-% ----------------------------------------------------------------------------
-
-serve_playground(Request) :-
-    playground_dir(Dir),
-    project_root(Root),
-    atomic_list_concat([Root, '/', Dir], PlaygroundPath),
-    http_reply_from_files(PlaygroundPath, [index('index.html')], Request).
 
 % ----------------------------------------------------------------------------
 % API: 获取游戏状态
@@ -165,21 +137,20 @@ api_command(Request) :-
         (Command = CommandStr)
     ),
     
-    % 捕获输出
+    % 捕获输出（包括命令执行和实体更新）
     with_output_to(string(Output), (
-        process_command_with_output(Command, Success)
-    )),
-    
-    % 更新实体位置（如果命令成功）
-    (Success = true -> 
-        catch(
-            with_output_to(string(_), update_entity_from_pddl),
-            _,
+        process_command_with_output(Command, Success),
+        % 更新实体位置（如果命令成功）
+        (Success = true -> 
+            catch(
+                update_entity_from_pddl,
+                Error,
+                (format('Error updating entity: ~w~n', [Error]))
+            )
+        ; 
             true
         )
-    ; 
-        true
-    ),
+    )),
     
     % 检查游戏状态
     (check_win_condition -> GameStatus = win
@@ -190,7 +161,25 @@ api_command(Request) :-
     (at_player(PlayerLoc) -> PlayerLocation = PlayerLoc; PlayerLocation = null),
     (at_entity(EntityLoc) -> EntityLocation = EntityLoc; EntityLocation = null),
     (sanity(S) -> SanityValue = S; SanityValue = 100),
-    (holding(Item) -> HoldingItem = Item; HoldingItem = null),
+    (findall(Item, holding(Item), HoldingItems) -> 
+        (HoldingItems = [] -> HoldingItemList = []; HoldingItemList = HoldingItems)
+    ; 
+        HoldingItemList = []
+    ),
+    
+    % 获取当前房间的物品
+    (PlayerLocation \= null ->
+        findall(Item, item_location(Item, PlayerLocation), ItemsHere)
+    ;
+        ItemsHere = []
+    ),
+    
+    % 获取当前房间的出口
+    (PlayerLocation \= null ->
+        findall(json{direction: Dir, to: Room}, connect(PlayerLocation, Dir, Room), Exits)
+    ;
+        Exits = []
+    ),
     
     Reply = json{
         success: Success,
@@ -199,7 +188,9 @@ api_command(Request) :-
         player_location: PlayerLocation,
         entity_location: EntityLocation,
         sanity: SanityValue,
-        holding: HoldingItem
+        holding: HoldingItemList,
+        items_here: ItemsHere,
+        exits: Exits
     },
     
     cors_reply_json(Reply).
@@ -320,7 +311,8 @@ check_win_condition :-
     is_exit(manila_room).
 
 check_lose_condition :-
-    (sanity(S), S =< 0; true),
+    sanity(S),
+    S =< 0,
     !.
 check_lose_condition :-
     at_player(PlayerLoc),

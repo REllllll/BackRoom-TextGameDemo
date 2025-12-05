@@ -6,7 +6,7 @@
   ;; 定义实体的动作：移动、监听、追逐
   ;; =========================================================================
 
-  (:requirements :strips :typing)
+  (:requirements :strips :typing :conditional-effects)
 
   ;; -------------------------------------------------------------------------
   ;; 类型定义 (Type Definitions)
@@ -53,8 +53,25 @@
 
   ;; -------------------------------------------------------------------------
   ;; 动作：监听 (Action: Listen)
+  ;; 实体可以听到玩家在相邻房间的声音
   ;; -------------------------------------------------------------------------
   (:action listen
+    :parameters (?e - entity ?entity_loc - location ?adjacent_loc - location ?p - player)
+    :precondition (and
+      (at ?e ?entity_loc)
+      (connected ?entity_loc ?adjacent_loc)
+      (at_player ?p ?adjacent_loc)
+    )
+    :effect (and
+      (player_known ?p ?adjacent_loc)
+    )
+  )
+  
+  ;; -------------------------------------------------------------------------
+  ;; 动作：监听噪音 (Action: Listen to Noise)
+  ;; 实体可以听到噪音并发现玩家位置
+  ;; -------------------------------------------------------------------------
+  (:action listen_noise
     :parameters (?e - entity ?l - location ?p - player)
     :precondition (and
       (at ?e ?l)

@@ -26,9 +26,18 @@ move(Direction) :-
     at_player(CurrentRoom),
     connect(CurrentRoom, Direction, NextRoom),
     can_enter_room(NextRoom),
+    at_entity(EntityLoc),
+    % 检查玩家是否移动到相邻房间（Howler 会吼叫）
+    (connect(EntityLoc, _, NextRoom) ->
+        write('You move to '), write(NextRoom), write('.'), nl,
+        write('*** A LOUD HOWL ECHOES FROM THE ADJACENT ROOM! ***'), nl,
+        write('The Howler has heard you!'), nl,
+        add_sanity(-5)  % 听到吼叫，理智值下降
+    ;
+        write('You move to '), write(NextRoom), write('.'), nl
+    ),
     set_player_location(NextRoom),
     add_sanity(-1),  % 移动消耗理智值
-    write('You move to '), write(NextRoom), write('.'), nl,
     check_entity_proximity,
     !.
 move(_) :-
@@ -38,19 +47,22 @@ move(_) :-
 % 进入房间检查 (Room Entry Check)
 % ----------------------------------------------------------------------------
 
+% 检查是否需要钥匙（优先检查）
 can_enter_room(Room) :-
-    \+ is_dark(Room),
-    !.
-can_enter_room(Room) :-
-    is_dark(Room),
-    holding(flashlight),
-    !.
+    requires_key(Room),
+    \+ holding(key),
+    write('The door is locked. You need a key to enter.'), nl,
+    add_sanity(-5),  % 尝试进入需要钥匙的房间失败，理智值下降
+    fail.
+% 检查是否黑暗（在钥匙检查之后）
 can_enter_room(Room) :-
     is_dark(Room),
     \+ holding(flashlight),
     write('It is too dark to enter. You need a flashlight.'), nl,
     add_sanity(-5),  % 尝试进入黑暗房间失败，理智值下降
     fail.
+% 如果通过所有检查，允许进入
+can_enter_room(_Room).
 
 % ----------------------------------------------------------------------------
 % 移动可行性检查 (Move Feasibility Check)
@@ -67,13 +79,15 @@ can_move(From, To) :-
 take(Item) :-
     at_player(Location),
     item_location(Item, Location),
-    \+ holding(_),
+    count_holding(Count),
+    Count < 2,
     take_item(Item),
     write('You pick up the '), write(Item), write('.'), nl,
     !.
 take(_Item) :-
-    holding(_),
-    write('Your hands are full. Drop something first.'), nl,
+    count_holding(Count),
+    Count >= 2,
+    write('Your hands are full. You can only carry 2 items. Drop something first.'), nl,
     !.
 take(Item) :-
     write('The '), write(Item), write(' is not here.'), nl.
@@ -100,7 +114,7 @@ use(almond_water) :-
     holding(almond_water),
     item_property(almond_water, restores_sanity(Amount)),
     add_sanity(Amount),
-    retractall(holding(_)),
+    retract(holding(almond_water)),
     write('You drink the almond water. Your sanity increases.'), nl,
     !.
 use(flashlight) :-
