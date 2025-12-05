@@ -21,7 +21,17 @@
     drop_item/1,
     update_item_location/2,
     player_previous_location/1,
-    set_player_previous_location/1
+    set_player_previous_location/1,
+    game_over_status/1,
+    set_game_over_status/1,
+    is_game_over/0,
+    player_entered_dark_corridor/0,
+    set_player_entered_dark_corridor/0,
+    howler_chasing/0,
+    set_howler_chasing/0,
+    cached_entity_plan/1,
+    set_cached_entity_plan/1,
+    clear_cached_entity_plan/0
 ]).
 
 % ----------------------------------------------------------------------------
@@ -34,6 +44,10 @@
 :- dynamic holding/1.
 :- dynamic item_location/2.
 :- dynamic player_previous_location/1.
+:- dynamic game_over_status/1.
+:- dynamic player_entered_dark_corridor/0.
+:- dynamic howler_chasing/0.
+:- dynamic cached_entity_plan/1.
 
 % ----------------------------------------------------------------------------
 % 初始化游戏状态 (Initialize Game State)
@@ -47,6 +61,10 @@ init_game_state :-
     retractall(holding(_)),
     retractall(item_location(_, _)),
     retractall(player_previous_location(_)),
+    retractall(game_over_status(_)),
+    retractall(player_entered_dark_corridor),
+    retractall(howler_chasing),
+    retractall(cached_entity_plan(_)),
     
     % 设置初始状态
     asserta(at_player(start_point)),
@@ -140,4 +158,60 @@ drop_item(Item) :-
 update_item_location(Item, Location) :-
     retractall(item_location(Item, _)),
     asserta(item_location(Item, Location)).
+
+% ----------------------------------------------------------------------------
+% 游戏结束状态操作 (Game Over Status Operations)
+% ----------------------------------------------------------------------------
+
+set_game_over_status(Status) :-
+    retractall(game_over_status(_)),
+    asserta(game_over_status(Status)).
+
+is_game_over :-
+    game_over_status(_).
+
+% ----------------------------------------------------------------------------
+% Dark Corridor 和 Howler 追逐状态操作
+% ----------------------------------------------------------------------------
+
+% 检查玩家是否已经进入过dark_corridor
+player_entered_dark_corridor :-
+    player_entered_dark_corridor.
+
+% 设置玩家已进入dark_corridor
+set_player_entered_dark_corridor :-
+    (player_entered_dark_corridor ->
+        true  % 已经设置过，不需要重复设置
+    ;
+        asserta(player_entered_dark_corridor)
+    ).
+
+% 检查Howler是否已经开始追逐
+howler_chasing :-
+    howler_chasing.
+
+% 设置Howler开始追逐
+set_howler_chasing :-
+    (howler_chasing ->
+        true  % 已经开始追逐，不需要重复设置
+    ;
+        asserta(howler_chasing)
+    ).
+
+% ----------------------------------------------------------------------------
+% 规划路径缓存操作
+% ----------------------------------------------------------------------------
+
+% 获取缓存的规划路径
+cached_entity_plan(Plan) :-
+    cached_entity_plan(Plan).
+
+% 设置缓存的规划路径
+set_cached_entity_plan(Plan) :-
+    retractall(cached_entity_plan(_)),
+    asserta(cached_entity_plan(Plan)).
+
+% 清除缓存的规划路径
+clear_cached_entity_plan :-
+    retractall(cached_entity_plan(_)).
 

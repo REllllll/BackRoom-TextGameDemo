@@ -140,15 +140,41 @@ api_command(Request) :-
     % 捕获输出（包括命令执行和实体更新）
     with_output_to(string(Output), (
         process_command_with_output(Command, Success),
-        % 更新实体位置（如果命令成功）
-        (Success = true -> 
-            catch(
-                update_entity_from_pddl,
-                Error,
-                (format('Error updating entity: ~w~n', [Error]))
-            )
-        ; 
+        % 检查游戏是否已经结束（在实体更新之前）
+        (is_game_over ->
+            % 游戏已结束，不更新实体
             true
+        ;
+            % 更新实体位置
+            % 如果Howler已经开始追逐，所有玩家动作都会触发Howler移动
+            (howler_chasing ->
+                catch(
+                    update_entity_from_pddl,
+                    Error,
+                    (format('Error updating entity: ~w~n', [Error]))
+                )
+            ;
+                % Howler还没有开始追逐，使用原有逻辑
+                % 如果命令成功，或者命令是move但失败了（玩家尝试移动但被阻止，Howler也应该行动）
+                (Success = true -> 
+                    catch(
+                        update_entity_from_pddl,
+                        Error,
+                        (format('Error updating entity: ~w~n', [Error]))
+                    )
+                ; 
+                    % 命令失败，但如果是move命令，玩家尝试了移动，Howler也应该行动
+                    (Command = move(Direction) ->
+                        catch(
+                            update_entity_on_failed_move(Direction),
+                            Error,
+                            (format('Error updating entity: ~w~n', [Error]))
+                        )
+                    ;
+                        true
+                    )
+                )
+            )
         )
     )),
     
@@ -307,9 +333,19 @@ process_command(_) :-
 % ----------------------------------------------------------------------------
 
 check_win_condition :-
+    % 首先检查游戏是否已经结束（通过游戏状态标志）
+    game_over_status(win),
+    !.
+check_win_condition :-
     at_player(manila_room),
-    is_exit(manila_room).
+    is_exit(manila_room),
+    holding(key).  % 必须持有钥匙才能获胜
 
+check_lose_condition :-
+    % 首先检查游戏是否已经结束（通过游戏状态标志）
+    game_over_status(Status),
+    (Status = lose_sanity; Status = lose_caught),
+    !.
 check_lose_condition :-
     sanity(S),
     S =< 0,

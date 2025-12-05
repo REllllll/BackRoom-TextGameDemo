@@ -80,11 +80,21 @@ const elements = {
 // 初始化
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+// 初始化函数
+function initializeApp() {
     setupEventListeners();
     loadMapData();
     refreshGameState();
-});
+}
+
+// 检查 DOM 是否已准备好
+if (document.readyState === 'loading') {
+    // DOM 还在加载中，等待 DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    // DOM 已经准备好了，直接初始化
+    initializeApp();
+}
 
 // ============================================================================
 // 事件监听器
@@ -384,12 +394,13 @@ function drawMap() {
     
     // 房间位置（基于连接关系的自动布局）
     const roomPositions = calculateRoomPositions(mapData);
+    const adjustedPositions = adjustPositions(roomPositions, svg);
     
     // 绘制连接
     if (mapData.connections) {
         mapData.connections.forEach(conn => {
-            const fromPos = roomPositions[conn.from];
-            const toPos = roomPositions[conn.to];
+            const fromPos = adjustedPositions[conn.from];
+            const toPos = adjustedPositions[conn.to];
             
             if (fromPos && toPos) {
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -405,7 +416,7 @@ function drawMap() {
     
     // 绘制房间节点
     mapData.rooms.forEach(room => {
-        const pos = roomPositions[room];
+        const pos = adjustedPositions[room];
         if (!pos) return;
         
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -422,6 +433,41 @@ function drawMap() {
         text.textContent = room.replace(/_/g, ' ');
         svg.appendChild(text);
     });
+}
+
+// 将位置平移到 SVG 容器中心，确保所有房间可见
+function adjustPositions(positions, svg) {
+    const adjusted = {};
+    const coords = Object.values(positions);
+    if (coords.length === 0) return adjusted;
+    
+    // 读取 viewBox 尺寸，默认 800x600
+    const viewBox = svg.getAttribute('viewBox') || '0 0 800 600';
+    const parts = viewBox.split(' ').map(Number);
+    const viewWidth = parts[2] || 800;
+    const viewHeight = parts[3] || 600;
+    
+    const minX = Math.min(...coords.map(p => p.x));
+    const maxX = Math.max(...coords.map(p => p.x));
+    const minY = Math.min(...coords.map(p => p.y));
+    const maxY = Math.max(...coords.map(p => p.y));
+    
+    const padding = 60; // 预留边距，避免节点贴边
+    const mapWidth = (maxX - minX) + padding * 2;
+    const mapHeight = (maxY - minY) + padding * 2;
+    
+    // 将地图居中放置
+    const offsetX = padding - minX + (viewWidth - mapWidth) / 2;
+    const offsetY = padding - minY + (viewHeight - mapHeight) / 2;
+    
+    Object.entries(positions).forEach(([room, pos]) => {
+        adjusted[room] = {
+            x: pos.x + offsetX,
+            y: pos.y + offsetY
+        };
+    });
+    
+    return adjusted;
 }
 
 function calculateRoomPositions(mapData) {

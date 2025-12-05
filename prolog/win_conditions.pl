@@ -20,7 +20,7 @@
 check_win :-
     at_player(manila_room),
     is_exit(manila_room),
-    (holding(key) -> true; true),  % 如果需要钥匙，检查是否持有
+    holding(key),  % 必须持有钥匙才能获胜
     write('========================================'), nl,
     write('YOU ESCAPED!'), nl,
     write('You noclipped out of Level 0!'), nl,
@@ -59,7 +59,9 @@ check_lose :-
 % 游戏结束处理 (Game Over Handler)
 % ----------------------------------------------------------------------------
 
-game_over(_Result) :-
+game_over(Result) :-
+    % 设置游戏结束状态
+    set_game_over_status(Result),
     % TODO: 保存游戏结果，清理资源等
     true.
 

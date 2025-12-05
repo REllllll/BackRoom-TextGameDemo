@@ -17,6 +17,7 @@
 
 :- use_module(game_state).
 :- use_module(knowledge_base).
+:- use_module(win_conditions).
 
 % ----------------------------------------------------------------------------
 % 移动命令 (Move Command)
@@ -36,6 +37,19 @@ move(Direction) :-
     ;
         write('You move to '), write(NextRoom), write('.'), nl
     ),
+    % 检查玩家是否进入dark_corridor
+    (NextRoom = dark_corridor ->
+        set_player_entered_dark_corridor
+    ;
+        true
+    ),
+    % 检查玩家是否从dark_corridor离开（第一次离开时启动Howler追逐）
+    (CurrentRoom = dark_corridor, player_entered_dark_corridor, \+ howler_chasing ->
+        set_howler_chasing,
+        write('*** The Howler begins its pursuit! ***'), nl
+    ;
+        true
+    ),
     set_player_location(NextRoom),
     add_sanity(-1),  % 移动消耗理智值
     check_entity_proximity,
@@ -47,22 +61,23 @@ move(_) :-
 % 进入房间检查 (Room Entry Check)
 % ----------------------------------------------------------------------------
 
-% 检查是否需要钥匙（优先检查）
 can_enter_room(Room) :-
-    requires_key(Room),
-    \+ holding(key),
-    write('The door is locked. You need a key to enter.'), nl,
-    add_sanity(-5),  % 尝试进入需要钥匙的房间失败，理智值下降
-    fail.
-% 检查是否黑暗（在钥匙检查之后）
-can_enter_room(Room) :-
-    is_dark(Room),
-    \+ holding(flashlight),
-    write('It is too dark to enter. You need a flashlight.'), nl,
-    add_sanity(-5),  % 尝试进入黑暗房间失败，理智值下降
-    fail.
-% 如果通过所有检查，允许进入
-can_enter_room(_Room).
+    % 首先检查是否需要钥匙
+    (requires_key(Room), \+ holding(key) ->
+        write('The door is locked. You need a key to enter.'), nl,
+        add_sanity(-5),  % 尝试进入需要钥匙的房间失败，理智值下降
+        fail  % 明确失败，不允许进入
+    ;
+        true  % 不需要钥匙，或者持有钥匙，继续检查
+    ),
+    % 然后检查是否黑暗
+    (is_dark(Room), \+ holding(flashlight) ->
+        write('It is too dark to enter. You need a flashlight.'), nl,
+        add_sanity(-5),  % 尝试进入黑暗房间失败，理智值下降
+        fail  % 明确失败，不允许进入
+    ;
+        true  % 不是黑暗的，或者持有手电筒，允许进入
+    ).
 
 % ----------------------------------------------------------------------------
 % 移动可行性检查 (Move Feasibility Check)
@@ -167,7 +182,8 @@ check_entity_proximity :-
     at_entity(EntityLoc),
     (PlayerLoc = EntityLoc ->
         write('WARNING: The Howler is in the same room!'), nl,
-        add_sanity(-10)
+        add_sanity(-10),
+        check_lose  % 检查并触发游戏结束
     ;
         true
     ).

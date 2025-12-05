@@ -3,7 +3,7 @@
   ;; adversary_domain.pddl
   ;; =========================================================================
   ;; 实体（The Howler）的 PDDL 域定义
-  ;; 定义实体的动作：移动、监听、追逐
+  ;; 定义实体的动作：留在原地、移动（一步步移动）
   ;; =========================================================================
 
   (:requirements :strips :typing :conditional-effects)
@@ -31,79 +31,31 @@
     ;; 感知相关
     (noise_at ?l - location)            ; 某个位置有噪音
     (player_known ?p - player ?l - location) ; 已知玩家位置
+    (player_attempted_door ?p - player ?from - location ?to - location) ; 玩家尝试开门
     
     ;; 目标状态
     (trapped ?p - player)                ; 玩家被困（实体和玩家在同一位置）
   )
 
   ;; -------------------------------------------------------------------------
+  ;; 动作：留在原地 (Action: Stay)
+  ;; 实体保持当前位置不变
+  ;; -------------------------------------------------------------------------
+  (:action stay
+    :parameters (?e - entity ?loc - location)
+    :precondition (and
+      (at ?e ?loc)
+    )
+    :effect (and
+      (at ?e ?loc)
+    )
+  )
+
+  ;; -------------------------------------------------------------------------
   ;; 动作：移动 (Action: Move)
+  ;; 实体移动到相邻房间（一步步移动）
   ;; -------------------------------------------------------------------------
   (:action move
-    :parameters (?e - entity ?from - location ?to - location)
-    :precondition (and
-      (at ?e ?from)
-      (connected ?from ?to)
-    )
-    :effect (and
-      (not (at ?e ?from))
-      (at ?e ?to)
-    )
-  )
-
-  ;; -------------------------------------------------------------------------
-  ;; 动作：监听 (Action: Listen)
-  ;; 实体可以听到玩家在相邻房间的声音
-  ;; -------------------------------------------------------------------------
-  (:action listen
-    :parameters (?e - entity ?entity_loc - location ?adjacent_loc - location ?p - player)
-    :precondition (and
-      (at ?e ?entity_loc)
-      (connected ?entity_loc ?adjacent_loc)
-      (at_player ?p ?adjacent_loc)
-    )
-    :effect (and
-      (player_known ?p ?adjacent_loc)
-    )
-  )
-  
-  ;; -------------------------------------------------------------------------
-  ;; 动作：监听噪音 (Action: Listen to Noise)
-  ;; 实体可以听到噪音并发现玩家位置
-  ;; -------------------------------------------------------------------------
-  (:action listen_noise
-    :parameters (?e - entity ?l - location ?p - player)
-    :precondition (and
-      (at ?e ?l)
-      (noise_at ?l)
-      (at_player ?p ?l)
-    )
-    :effect (and
-      (player_known ?p ?l)
-    )
-  )
-
-  ;; -------------------------------------------------------------------------
-  ;; 动作：追逐 (Action: Chase)
-  ;; -------------------------------------------------------------------------
-  (:action chase
-    :parameters (?e - entity ?from - location ?to - location ?p - player)
-    :precondition (and
-      (at ?e ?from)
-      (connected ?from ?to)
-      (player_known ?p ?to)
-    )
-    :effect (and
-      (not (at ?e ?from))
-      (at ?e ?to)
-      (when (at_player ?p ?to) (trapped ?p))
-    )
-  )
-
-  ;; -------------------------------------------------------------------------
-  ;; 动作：巡逻 (Action: Roam)
-  ;; -------------------------------------------------------------------------
-  (:action roam
     :parameters (?e - entity ?from - location ?to - location)
     :precondition (and
       (at ?e ?from)

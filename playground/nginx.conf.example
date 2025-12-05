@@ -1,0 +1,55 @@
+# Nginx 配置示例 - 开发环境（禁用缓存）
+# 将此配置添加到你的 nginx 配置文件中
+
+server {
+    listen 80;
+    server_name your-domain.com;  # 替换为你的域名或 IP
+    
+    # 前端静态文件目录
+    root /path/to/BackRoom-TextGameDemo/playground;  # 替换为实际路径
+    index index.html;
+
+    # 禁用所有静态资源的缓存（开发环境）
+    location ~* \.(js|css|html)$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        try_files $uri =404;
+    }
+
+    # API 代理到后端服务器
+    location /api {
+        proxy_pass http://localhost:8080;  # 替换为实际后端地址
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 其他静态文件
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+# ============================================================================
+# 生产环境配置（启用缓存，但使用版本号）
+# ============================================================================
+# 在生产环境中，建议：
+# 1. 使用版本号管理（如 app.js?v=1.0.0）
+# 2. 配置长期缓存（如 1 年）
+# 3. 使用文件哈希作为版本号（如 app.abc123.js）
+#
+# 示例：
+# location ~* \.(js|css)$ {
+#     expires 1y;
+#     add_header Cache-Control "public, immutable";
+# }
+#
+# 然后在 HTML 中使用版本号：
+# <script src="app.js?v=1.0.0"></script>
+

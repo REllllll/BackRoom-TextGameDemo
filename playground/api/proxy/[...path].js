@@ -17,17 +17,7 @@ export default async function handler(req, res) {
   }
   
   // 获取路径参数
-  // 在 Vercel 的 [...path].js 中，路径参数通过 req.query.path 传递
-  let pathParam = req.query.path;
-  
-  // 如果 path 参数不存在，尝试从 URL 中解析
-  // 例如：/api/proxy/command -> command
-  if (!pathParam && req.url) {
-    const urlMatch = req.url.match(/^\/api\/proxy\/(.+?)(?:\?|$)/);
-    if (urlMatch) {
-      pathParam = urlMatch[1];
-    }
-  }
+  const { path } = req.query;
   
   // 从环境变量获取后端地址
   const backendUrl = process.env.BACKEND_URL;
@@ -42,25 +32,11 @@ export default async function handler(req, res) {
     });
   }
   
-  // 构建路径段
-  // pathParam 可能是数组（多个路径段）或字符串（单个路径段）或 undefined
-  let pathSegments = '';
-  if (pathParam) {
-    if (Array.isArray(pathParam)) {
-      pathSegments = pathParam.join('/');
-    } else {
-      pathSegments = String(pathParam);
-    }
-  }
-  
   // 构建完整的后端 URL
-  // 如果 pathSegments 为空，则只使用 /api
-  const targetUrl = pathSegments 
-    ? `${backendUrl}/api/${pathSegments}`
-    : `${backendUrl}/api`;
+  const pathSegments = Array.isArray(path) ? path.join('/') : (path || '');
+  const targetUrl = `${backendUrl}/api/${pathSegments}`;
   
   // 处理查询参数（排除 path 参数，因为它是路由参数）
-  // 使用显式过滤而不是正则表达式，避免错误匹配其他参数值中包含 "path=" 的情况
   const queryParams = new URLSearchParams();
   Object.keys(req.query).forEach(key => {
     if (key !== 'path') {
@@ -73,20 +49,12 @@ export default async function handler(req, res) {
     }
   });
   
-  // 获取查询字符串（如果所有参数都被过滤掉，toString() 会返回空字符串）
   const queryString = queryParams.toString();
-  // 只有在查询字符串非空时才添加 ?，避免生成形如 http://example.com/api/test? 的无效 URL
-  const fullUrl = queryString && queryString.length > 0 
-    ? `${targetUrl}?${queryString}` 
-    : targetUrl;
+  const fullUrl = queryString ? `${targetUrl}?${queryString}` : targetUrl;
   
   // 记录请求信息（用于调试）
-  console.log(`[Proxy] ${req.method} ${req.url}`);
-  console.log(`[Proxy] Path param:`, pathParam);
-  console.log(`[Proxy] Path segments:`, pathSegments);
+  console.log(`[Proxy] ${req.method} ${req.url} -> ${fullUrl}`);
   console.log(`[Proxy] Backend URL: ${backendUrl}`);
-  console.log(`[Proxy] Target URL: ${targetUrl}`);
-  console.log(`[Proxy] Full URL: ${fullUrl}`);
   
   try {
     // 创建超时控制器（20秒超时）
@@ -161,13 +129,6 @@ export default async function handler(req, res) {
       hint: errorHint,
       backendUrl: backendUrl,
       targetUrl: fullUrl,
-      // 添加调试信息帮助排查问题
-      debug: {
-        pathParam: pathParam,
-        pathSegments: pathSegments,
-        originalUrl: req.url,
-        queryParams: Object.keys(req.query)
-      },
       // 在开发环境或特定条件下显示更多调试信息
       details: process.env.VERCEL_ENV === 'development' ? {
         originalError: error.message,
@@ -177,4 +138,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
