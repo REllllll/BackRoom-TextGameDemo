@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,89 +11,89 @@
     <div class="container">
         <header>
             <h1>Liminal Logic: Escape from Level 0</h1>
-            <p class="subtitle">基于 Prolog 和 PDDL 的后室逃脱游戏</p>
+            <p class="subtitle">A Backrooms escape game built with Prolog and PDDL</p>
         </header>
 
         <div class="game-layout">
-            <!-- 左侧：游戏状态和命令 -->
+            <!-- Left: game state and commands -->
             <div class="left-panel">
-                <!-- 游戏状态面板 -->
+                <!-- Game status panel -->
                 <div class="status-panel">
-                    <h2>游戏状态</h2>
+                    <h2>Game Status</h2>
                     <div class="status-item">
-                        <span class="label">当前位置:</span>
+                        <span class="label">Current Location:</span>
                         <span id="player-location" class="value">-</span>
                     </div>
                     <div class="status-item">
-                        <span class="label">理智值:</span>
+                        <span class="label">Sanity:</span>
                         <span id="sanity" class="value">100</span>
                         <div class="sanity-bar">
                             <div id="sanity-bar-fill" class="sanity-bar-fill"></div>
                         </div>
                     </div>
                     <div class="status-item">
-                        <span class="label">持有物品:</span>
-                        <span id="holding-item" class="value">无</span>
+                        <span class="label">Inventory:</span>
+                        <span id="holding-item" class="value">None</span>
                     </div>
                     <div class="status-item">
-                        <span class="label">实体位置:</span>
+                        <span class="label">Entity Location:</span>
                         <span id="entity-location" class="value">-</span>
                     </div>
                     <div class="status-item">
-                        <span class="label">游戏状态:</span>
-                        <span id="game-status" class="value">未开始</span>
+                        <span class="label">Game Status:</span>
+                        <span id="game-status" class="value">Not started</span>
                     </div>
                 </div>
 
-                <!-- 当前房间信息 -->
+                <!-- Current room info -->
                 <div class="room-panel">
-                    <h2>当前房间</h2>
+                    <h2>Current Room</h2>
                     <div id="room-info">
-                        <p id="room-description">未初始化</p>
+                        <p id="room-description">Not initialized</p>
                         <div id="room-exits"></div>
                         <div id="room-items"></div>
                     </div>
                 </div>
 
-                <!-- 命令输入区 -->
+                <!-- Command area -->
                 <div class="command-panel">
-                    <h2>命令</h2>
+                    <h2>Commands</h2>
                     <div class="command-input-group">
-                        <input type="text" id="command-input" placeholder="输入命令，如: move(east), take(flashlight), look" />
-                        <button id="execute-btn">执行</button>
+                        <input type="text" id="command-input" placeholder="Enter command, e.g. move(east), take(flashlight), look" />
+                        <button id="execute-btn">Run</button>
                     </div>
                     <div class="command-buttons">
-                        <button class="cmd-btn" data-cmd="look">查看</button>
-                        <button class="cmd-btn" data-cmd="move(north)">向北</button>
-                        <button class="cmd-btn" data-cmd="move(south)">向南</button>
-                        <button class="cmd-btn" data-cmd="move(east)">向东</button>
-                        <button class="cmd-btn" data-cmd="move(west)">向西</button>
+                        <button class="cmd-btn" data-cmd="look">Look</button>
+                        <button class="cmd-btn" data-cmd="move(north)">North</button>
+                        <button class="cmd-btn" data-cmd="move(south)">South</button>
+                        <button class="cmd-btn" data-cmd="move(east)">East</button>
+                        <button class="cmd-btn" data-cmd="move(west)">West</button>
                     </div>
                     <div class="command-buttons">
-                        <button id="take-item-btn" class="cmd-btn" id="take-item-btn">拾取物品</button>
-                        <button class="cmd-btn" data-cmd="use(almond_water)">使用杏仁水</button>
-                        <button class="cmd-btn" data-cmd="drop(tape_recorder)">丢弃录音机</button>
+                        <button id="take-item-btn" class="cmd-btn" id="take-item-btn">Take Item</button>
+                        <button class="cmd-btn" data-cmd="use(almond_water)">Use Almond Water</button>
+                        <button class="cmd-btn" data-cmd="drop(tape_recorder)">Drop Tape Recorder</button>
                     </div>
                     <div class="game-controls">
-                        <button id="init-btn" class="control-btn">初始化游戏</button>
-                        <button id="refresh-btn" class="control-btn">刷新状态</button>
+                        <button id="init-btn" class="control-btn">Initialize Game</button>
+                        <button id="refresh-btn" class="control-btn">Refresh Status</button>
                     </div>
                 </div>
             </div>
 
-            <!-- 右侧：地图和日志 -->
+            <!-- Right: map and log -->
             <div class="right-panel">
-                <!-- 地图可视化 -->
+                <!-- Map visualization -->
                 <div class="map-panel">
-                    <h2>地图</h2>
+                    <h2>Map</h2>
                     <div id="map-container">
                         <svg id="map-svg" viewBox="0 0 800 600"></svg>
                     </div>
                 </div>
 
-                <!-- 游戏日志 -->
+                <!-- Game log -->
                 <div class="log-panel">
-                    <h2>游戏日志</h2>
+                    <h2>Game Log</h2>
                     <div id="game-log"></div>
                 </div>
             </div>
@@ -101,7 +101,7 @@
     </div>
 
     <script>
-        // 动态加载脚本，添加时间戳避免缓存
+        // Dynamically load script with timestamp to avoid caching
         const script = document.createElement('script');
         script.src = `app.js?v=${Date.now()}`;
         document.body.appendChild(script);

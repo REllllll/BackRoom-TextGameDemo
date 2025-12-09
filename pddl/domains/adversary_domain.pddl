@@ -2,44 +2,44 @@
   ;; =========================================================================
   ;; adversary_domain.pddl
   ;; =========================================================================
-  ;; 实体（The Howler）的 PDDL 域定义
-  ;; 定义实体的动作：留在原地、移动（一步步移动）
+  ;; PDDL domain definition for the entity (The Howler)
+  ;; Defines entity actions: stay in place, move step by step
   ;; =========================================================================
 
   (:requirements :strips :typing :conditional-effects)
 
   ;; -------------------------------------------------------------------------
-  ;; 类型定义 (Type Definitions)
+  ;; Type Definitions
   ;; -------------------------------------------------------------------------
   (:types
-    location    ; 房间位置
-    entity      ; 实体（The Howler）
-    player      ; 玩家
+    location    ; Room location
+    entity      ; Entity (The Howler)
+    player      ; Player
   )
 
   ;; -------------------------------------------------------------------------
-  ;; 谓词定义 (Predicate Definitions)
+  ;; Predicate Definitions
   ;; -------------------------------------------------------------------------
   (:predicates
-    ;; 位置相关
-    (at ?e - entity ?l - location)      ; 实体在某个位置
-    (at_player ?p - player ?l - location) ; 玩家在某个位置
+    ;; Location-related
+    (at ?e - entity ?l - location)      ; Entity is at a location
+    (at_player ?p - player ?l - location) ; Player is at a location
     
-    ;; 连接关系
-    (connected ?from - location ?to - location) ; 房间之间的连接
+    ;; Connections
+    (connected ?from - location ?to - location) ; Connection between rooms
     
-    ;; 感知相关
-    (noise_at ?l - location)            ; 某个位置有噪音
-    (player_known ?p - player ?l - location) ; 已知玩家位置
-    (player_attempted_door ?p - player ?from - location ?to - location) ; 玩家尝试开门
+    ;; Sensing
+    (noise_at ?l - location)            ; Noise at a location
+    (player_known ?p - player ?l - location) ; Known player location
+    (player_attempted_door ?p - player ?from - location ?to - location) ; Player attempted a door
     
-    ;; 目标状态
-    (trapped ?p - player)                ; 玩家被困（实体和玩家在同一位置）
+    ;; Goal state
+    (trapped ?p - player)                ; Player trapped (entity and player at same location)
   )
 
   ;; -------------------------------------------------------------------------
-  ;; 动作：留在原地 (Action: Stay)
-  ;; 实体保持当前位置不变
+  ;; Action: Stay
+  ;; Entity keeps its current position
   ;; -------------------------------------------------------------------------
   (:action stay
     :parameters (?e - entity ?loc - location)
@@ -52,8 +52,8 @@
   )
 
   ;; -------------------------------------------------------------------------
-  ;; 动作：移动 (Action: Move)
-  ;; 实体移动到相邻房间（一步步移动）
+  ;; Action: Move
+  ;; Entity moves to an adjacent room (step by step)
   ;; -------------------------------------------------------------------------
   (:action move
     :parameters (?e - entity ?from - location ?to - location)

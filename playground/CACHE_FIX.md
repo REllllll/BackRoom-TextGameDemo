@@ -1,29 +1,29 @@
-# 解决浏览器缓存问题
+# Fix browser caching issues
 
-## 问题描述
+## Problem statement
 
-修改了 `app.js` 或 `style.css` 后，刷新浏览器时脚本没有更新，这是因为浏览器缓存了旧文件。
+After updating `app.js` or `style.css`, a browser refresh still loads the old scripts because the browser caches the previous files.
 
-## 解决方案
+## Solutions
 
-### 方案 1：使用时间戳（已实现，推荐用于开发环境）
+### Option 1: Use a timestamp (already implemented, recommended for dev)
 
-我已经修改了 `index.html`，使用动态加载脚本并添加时间戳：
+`index.html` dynamically loads the script with a timestamp:
 
 ```html
 <script>
-    // 动态加载脚本，添加时间戳避免缓存
+    // Dynamically load script and append timestamp to bust cache
     const script = document.createElement('script');
     script.src = `app.js?v=${Date.now()}`;
     document.body.appendChild(script);
 </script>
 ```
 
-这样每次刷新页面都会加载最新的脚本文件。
+This forces the latest script to load on every refresh.
 
-### 方案 2：配置 Nginx 禁用缓存（推荐用于开发环境）
+### Option 2: Configure Nginx to disable caching (recommended for dev)
 
-在 nginx 配置中添加以下规则，禁用静态资源缓存：
+Add the following rules to the Nginx config to disable static asset caching:
 
 ```nginx
 location ~* \.(js|css|html)$ {
@@ -34,51 +34,51 @@ location ~* \.(js|css|html)$ {
 }
 ```
 
-完整的配置示例请参考 `nginx.conf.example` 文件。
+See `nginx.conf.example` for a full configuration.
 
-**应用配置后，需要重新加载 nginx：**
+**After applying the config, reload nginx:**
 ```bash
-sudo nginx -t  # 测试配置
-sudo nginx -s reload  # 重新加载配置
+sudo nginx -t  # Test configuration
+sudo nginx -s reload  # Reload configuration
 ```
 
-### 方案 3：手动清除浏览器缓存
+### Option 3: Clear browser cache manually
 
-如果上述方案都不适用，可以手动清除浏览器缓存：
+If the above options are not suitable, clear the browser cache manually:
 
-1. **Chrome/Edge**：
-   - 按 `Ctrl+Shift+Delete` (Windows/Linux) 或 `Cmd+Shift+Delete` (Mac)
-   - 选择"缓存的图片和文件"
-   - 点击"清除数据"
+1. **Chrome/Edge**:
+   - Press `Ctrl+Shift+Delete` (Windows/Linux) or `Cmd+Shift+Delete` (Mac)
+   - Select "Cached images and files"
+   - Click "Clear data"
 
-2. **Firefox**：
-   - 按 `Ctrl+Shift+Delete` (Windows/Linux) 或 `Cmd+Shift+Delete` (Mac)
-   - 选择"缓存"
-   - 点击"立即清除"
+2. **Firefox**:
+   - Press `Ctrl+Shift+Delete` (Windows/Linux) or `Cmd+Shift+Delete` (Mac)
+   - Select "Cache"
+   - Click "Clear now"
 
-3. **强制刷新**：
-   - Windows/Linux: `Ctrl+F5` 或 `Ctrl+Shift+R`
+3. **Hard refresh**:
+   - Windows/Linux: `Ctrl+F5` or `Ctrl+Shift+R`
    - Mac: `Cmd+Shift+R`
 
-### 方案 4：使用开发者工具禁用缓存（开发时）
+### Option 4: Disable cache via devtools (during development)
 
-在浏览器开发者工具中：
-1. 打开开发者工具（F12）
-2. 打开 Network 标签
-3. 勾选 "Disable cache" 选项
-4. 保持开发者工具打开状态
+In browser devtools:
+1. Open devtools (F12)
+2. Open the Network tab
+3. Check "Disable cache"
+4. Keep devtools open
 
-## 推荐配置
+## Recommended setup
 
-- **开发环境**：使用方案 1（时间戳）或方案 2（nginx 配置）
-- **生产环境**：使用版本号管理（如 `app.js?v=1.0.0`），并配置长期缓存
+- **Development**: Option 1 (timestamp) or Option 2 (nginx config)
+- **Production**: Use versioning (e.g., `app.js?v=1.0.0`) and configure long-term caching
 
-## 验证修复
+## Validate the fix
 
-修改 `app.js` 后：
-1. 保存文件
-2. 刷新浏览器（或使用 `Ctrl+F5` 强制刷新）
-3. 打开浏览器开发者工具 → Network 标签
-4. 查看 `app.js` 的请求，应该看到新的时间戳参数
-5. 确认加载的是最新文件
+After modifying `app.js`:
+1. Save the file
+2. Refresh the browser (or use `Ctrl+F5` for hard refresh)
+3. Open browser devtools → Network tab
+4. Inspect the `app.js` request and confirm the new timestamp parameter
+5. Ensure the latest file is loaded
 

@@ -1,28 +1,28 @@
 // ============================================================================
 // Vercel Serverless Function: API Proxy
 // ============================================================================
-// 将前端请求代理到后端 HTTP 服务器，解决混合内容问题
+// Proxy frontend requests to backend HTTP server to avoid mixed content
 // ============================================================================
 
 export default async function handler(req, res) {
-  // 设置 CORS 头（先设置，以便错误响应也包含 CORS 头）
+  // Set CORS headers early so error responses include them
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
   
-  // 处理 OPTIONS 预检请求
+  // Handle OPTIONS preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  // 获取路径参数
+  // Get path parameters
   const { path } = req.query;
   
-  // 从环境变量获取后端地址
+  // Get backend URL from environment
   const backendUrl = process.env.BACKEND_URL;
   
-  // 检查环境变量是否设置
+  // Ensure environment variable is set
   if (!backendUrl) {
     console.error('BACKEND_URL environment variable is not set');
     return res.status(500).json({ 
@@ -32,11 +32,11 @@ export default async function handler(req, res) {
     });
   }
   
-  // 构建完整的后端 URL
+  // Build full backend URL
   const pathSegments = Array.isArray(path) ? path.join('/') : (path || '');
   const targetUrl = `${backendUrl}/api/${pathSegments}`;
   
-  // 处理查询参数（排除 path 参数，因为它是路由参数）
+  // Handle query params (exclude path because it is the route param)
   const queryParams = new URLSearchParams();
   Object.keys(req.query).forEach(key => {
     if (key !== 'path') {
@@ -52,16 +52,16 @@ export default async function handler(req, res) {
   const queryString = queryParams.toString();
   const fullUrl = queryString ? `${targetUrl}?${queryString}` : targetUrl;
   
-  // 记录请求信息（用于调试）
+  // Log request info for debugging
   console.log(`[Proxy] ${req.method} ${req.url} -> ${fullUrl}`);
   console.log(`[Proxy] Backend URL: ${backendUrl}`);
   
   try {
-    // 创建超时控制器（20秒超时）
+    // Create timeout controller (20s timeout)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
     
-    // 准备请求选项
+    // Prepare request options
     const fetchOptions = {
       method: req.method,
       headers: {
@@ -71,23 +71,23 @@ export default async function handler(req, res) {
       signal: controller.signal
     };
     
-    // 如果有请求体，添加到选项中
+    // Attach body when present
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
       fetchOptions.body = JSON.stringify(req.body);
     }
     
-    // 转发请求到后端服务器
+    // Forward request to backend
     const response = await fetch(fullUrl, fetchOptions);
     
-    // 清除超时定时器
+    // Clear timeout timer
     clearTimeout(timeoutId);
     
-    // 检查响应状态
+    // Check response status
     if (!response.ok) {
       console.error(`[Proxy] Backend returned error: ${response.status} ${response.statusText}`);
     }
     
-    // 获取响应数据
+    // Read response payload
     let data;
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -96,10 +96,10 @@ export default async function handler(req, res) {
       data = await response.text();
     }
     
-    // 返回响应
+    // Return response
     return res.status(response.status).json(data);
   } catch (error) {
-    // 详细的错误处理
+    // Detailed error handling
     console.error('[Proxy] Error details:', {
       message: error.message,
       name: error.name,
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
       backendUrl: backendUrl
     });
     
-    // 根据错误类型提供更详细的错误信息
+    // Provide error-specific messages
     let errorMessage = error.message;
     let errorHint = '';
     

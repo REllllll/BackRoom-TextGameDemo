@@ -1,15 +1,15 @@
-# Nginx 配置示例 - 开发环境（禁用缓存）
-# 将此配置添加到你的 nginx 配置文件中
+# Nginx config example - development (disable caching)
+# Add this to your nginx configuration
 
 server {
     listen 80;
-    server_name your-domain.com;  # 替换为你的域名或 IP
+    server_name your-domain.com;  # Replace with your domain or IP
     
-    # 前端静态文件目录
-    root /path/to/BackRoom-TextGameDemo/playground;  # 替换为实际路径
+    # Frontend static files directory
+    root /path/to/BackRoom-TextGameDemo/playground;  # Replace with the real path
     index index.html;
 
-    # 禁用所有静态资源的缓存（开发环境）
+    # Disable caching for static assets (development)
     location ~* \.(js|css|html)$ {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
         add_header Pragma "no-cache";
@@ -17,9 +17,9 @@ server {
         try_files $uri =404;
     }
 
-    # API 代理到后端服务器
+    # API proxy to backend server
     location /api {
-        proxy_pass http://localhost:8080;  # 替换为实际后端地址
+        proxy_pass http://localhost:8080;  # Replace with the real backend address
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -30,26 +30,26 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 其他静态文件
+    # Other static files
     location / {
         try_files $uri $uri/ /index.html;
     }
 }
 
 # ============================================================================
-# 生产环境配置（启用缓存，但使用版本号）
+# Production configuration (enable caching, use versioning)
 # ============================================================================
-# 在生产环境中，建议：
-# 1. 使用版本号管理（如 app.js?v=1.0.0）
-# 2. 配置长期缓存（如 1 年）
-# 3. 使用文件哈希作为版本号（如 app.abc123.js）
+# In production, consider:
+# 1. Use versioning (e.g., app.js?v=1.0.0)
+# 2. Configure long-term caching (e.g., 1 year)
+# 3. Use file hashes for versioning (e.g., app.abc123.js)
 #
-# 示例：
+# Example:
 # location ~* \.(js|css)$ {
 #     expires 1y;
 #     add_header Cache-Control "public, immutable";
 # }
 #
-# 然后在 HTML 中使用版本号：
+# Then reference the versioned asset in HTML:
 # <script src="app.js?v=1.0.0"></script>
 
