@@ -72,11 +72,14 @@ api_status(_Request) :-
     (sanity(Sanity) -> SanityValue = Sanity; SanityValue = 100),
     
     % 获取持有物品
-    (holding(Item) -> HoldingItem = Item; HoldingItem = null),
+    % 注意：不要在这里用 holding(Item) 直接绑定 Item，
+    % 否则会影响后面 items_here 的 findall(Item, ...)（变量复用导致误判房间无物品）。
+    % 统一用列表返回，前端已做数组/单值兼容处理。
+    findall(HeldItem, holding(HeldItem), HoldingItems),
     
     % 获取当前房间的物品
     (PlayerLocation \= null ->
-        findall(Item, item_location(Item, PlayerLocation), ItemsHere)
+        findall(RoomItem, item_location(RoomItem, PlayerLocation), ItemsHere)
     ;
         ItemsHere = []
     ),
@@ -98,7 +101,7 @@ api_status(_Request) :-
         player_location: PlayerLocation,
         entity_location: EntityLocation,
         sanity: SanityValue,
-        holding: HoldingItem,
+        holding: HoldingItems,
         items_here: ItemsHere,
         exits: Exits,
         game_status: GameStatus

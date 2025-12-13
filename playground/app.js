@@ -241,6 +241,28 @@ async function executeCommand() {
 // Auto take item
 // ============================================================================
 
+// Convert a JS value (usually a string item name) into a safe Prolog atom literal.
+// - If it's already a simple atom (e.g. almond_water), return as-is.
+// - Otherwise, quote it as a Prolog atom: '...'
+function toPrologAtom(value) {
+    if (value === null || value === undefined) {
+        return "''";
+    }
+    // Some backends might return objects; try common shapes.
+    const raw = (typeof value === 'string')
+        ? value
+        : (typeof value === 'object' && typeof value.value === 'string')
+            ? value.value
+            : String(value);
+    const s = raw.trim();
+    // SWI-Prolog atoms commonly used in this project are lowercase + underscores.
+    const isSimpleAtom = /^[a-z][a-zA-Z0-9_]*$/.test(s);
+    if (isSimpleAtom) return s;
+    // Escape single quotes by doubling them inside a quoted atom.
+    const escaped = s.replace(/'/g, "''");
+    return `'${escaped}'`;
+}
+
 async function autoTakeItem() {
     // Refresh first to ensure latest items
     try {
@@ -266,7 +288,9 @@ async function autoTakeItem() {
         
         // Take the first available item
         const firstItem = gameState.items_here[0];
-        const command = `take(${firstItem})`;
+        // Use the Prolog syntax the backend expects: take(item).
+        // Quote/escape item name defensively in case it contains special chars.
+        const command = `take(${toPrologAtom(firstItem)}).`;
         
         logMessage(`> ${command}`, 'command');
         
