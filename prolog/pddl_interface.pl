@@ -75,7 +75,18 @@ get_pddl_path(RelativePath, AbsolutePath) :-
 % 生成 PDDL problem，调用规划器，解析结果并更新实体位置
 % ----------------------------------------------------------------------------
 
+% 本回合跳过一次实体更新（例如 drop 录音机：下回合才开始行动）
 update_entity_from_pddl :-
+    consume_suppress_entity_update_once,
+    !.
+
+update_entity_from_pddl :-
+    % 如果实体已经到达噪音位置，噪音诱饵失效（避免一直被锁定在该目标）
+    (active_noise_at(NoiseLoc), at_entity(NoiseLoc) ->
+        clear_active_noise
+    ;
+        true
+    ),
     % 检查Howler是否已经开始追逐
     (howler_chasing ->
         % Howler已经开始追逐，使用优化的规划逻辑
@@ -97,13 +108,14 @@ update_entity_from_pddl :-
             generate_and_execute_plan
         )
     ;
-        % Howler还没有开始追逐，检查玩家位置是否真的改变了（只有移动命令才会改变位置）
+        % Howler还没有开始追逐：
+        % - 默认只在玩家移动时更新实体（避免 look 等命令让实体白走）
+        % - 但某些非移动命令（如丢弃录音机）也需要触发实体更新
         at_player(PlayerLoc),
         player_previous_location(PlayerPrevLoc),
-        (PlayerLoc = PlayerPrevLoc ->
-            % 玩家位置没有改变（例如执行了 look 命令），不更新实体
-            true
-        ;
+        ( (entity_update_requested ; PlayerLoc \= PlayerPrevLoc) ->
+            % 本回合已经明确要求更新实体，清除请求标记
+            clear_entity_update_request,
             % 玩家位置改变了，继续更新实体
             % 1. 生成当前状态的 PDDL problem 文件
             pddl_problem_path(ProblemPathRel),
@@ -125,13 +137,22 @@ update_entity_from_pddl :-
                     write('PDDL planner found no actions. Entity stays in place.'), nl
                 ;
                     write('Parsed actions: '), write(Actions), nl,
-                    apply_entity_actions(Actions),
+                    % 一回合只执行一个动作：取第一个“受支持”的动作（move/stay/chase）
+                    filter_supported_actions(Actions, SupportedActions),
+                    (SupportedActions = [FirstAction|_] ->
+                        apply_entity_actions([FirstAction])
+                    ;
+                        write('No supported entity actions found in plan. Entity stays in place.'), nl
+                    ),
                     write('Entity moved based on PDDL plan.'), nl
                 )
             ;
                 % 如果规划失败，实体保持原位置
                 write('PDDL planner did not generate a plan. Entity stays in place.'), nl
             )
+        ;
+            % 玩家位置没有改变（例如执行了 look 命令），且没有强制更新请求，不更新实体
+            true
         )
     ),
     !.
@@ -157,21 +178,20 @@ generate_and_execute_plan :-
     get_pddl_path(PlanPathRel, PlanPath),
     (exists_file(PlanPath) ->
         parse_plan_result(PlanPath, Actions),
-        (Actions = [] ->
+        filter_supported_actions(Actions, SupportedActions),
+        (SupportedActions = [] ->
             % PDDL 规划器没有找到动作，使用简单逻辑
             update_entity_towards_player,
             clear_cached_entity_plan
         ;
-            % 缓存规划路径（去掉第一步）
-            (Actions = [FirstAction|RestActions] ->
-                set_cached_entity_plan(RestActions),
-                % 只执行第一步
-                apply_entity_actions([FirstAction])
-            ;
-                % 只有一个动作，执行后清除缓存
-                apply_entity_actions(Actions),
+            % 一回合只执行第一步；其余动作（如有）缓存到下一回合
+            SupportedActions = [FirstAction|RestActions],
+            (RestActions = [] ->
                 clear_cached_entity_plan
-            )
+            ;
+                set_cached_entity_plan(RestActions)
+            ),
+            apply_entity_actions([FirstAction])
         )
     ;
         % 如果规划失败，使用简单逻辑
@@ -263,7 +283,13 @@ update_entity_on_failed_move(Direction) :-
             )
         ;
             write('Parsed actions: '), write(Actions), nl,
-            apply_entity_actions(Actions),
+            % 一回合只执行一个动作：取第一个“受支持”的动作（move/stay/chase）
+            filter_supported_actions(Actions, SupportedActions),
+            (SupportedActions = [FirstAction|_] ->
+                apply_entity_actions([FirstAction])
+            ;
+                write('No supported entity actions found in plan. Entity stays in place.'), nl
+            ),
             write('Entity moved based on PDDL plan (player attempted door).'), nl
         )
     ;
@@ -423,7 +449,7 @@ write_connection_pairs(Stream, [From-To|Rest]) :-
 % ----------------------------------------------------------------------------
 
 write_noise_locations(Stream) :-
-    (item_location(tape_recorder, Loc) ->
+    (active_noise_at(Loc) ->
         write(Stream, '    (noise_at '), write(Stream, Loc), write(Stream, ')'), nl(Stream)
     ; true).
 
@@ -435,6 +461,10 @@ write_goal(Stream) :-
     % 获取玩家位置和实体位置
     at_player(PlayerLoc),
     at_entity(EntityLoc),
+    % 如果存在有效噪音（录音机诱饵），优先把目标设置为噪音位置
+    (active_noise_at(NoiseLoc), NoiseLoc \= EntityLoc ->
+        write(Stream, '  (:goal (at howler '), write(Stream, NoiseLoc), write(Stream, '))'), nl(Stream)
+    ;
     % 检查Howler是否已经开始追逐
     (howler_chasing ->
         % Howler已经开始追逐，追逐玩家当前位置
@@ -459,7 +489,7 @@ write_goal(Stream) :-
             % 没有已知的玩家位置，留在原地
             write(Stream, '  (:goal (at howler '), write(Stream, EntityLoc), write(Stream, '))'), nl(Stream)
         )
-    ).
+    )).
 
 % ----------------------------------------------------------------------------
 % 写入目标状态（当玩家尝试开门时）
@@ -628,6 +658,19 @@ remove_until_bracket([_|Rest], Result) :-
 % 根据解析的动作序列更新实体位置
 % ----------------------------------------------------------------------------
 
+% 仅保留当前实现支持的动作（确保“一回合一步”时选择稳定）
+supported_entity_action(action(stay, _)).
+supported_entity_action(action(move, _)).
+supported_entity_action(action(chase, _)).
+
+filter_supported_actions([], []).
+filter_supported_actions([A|Rest], [A|FilteredRest]) :-
+    supported_entity_action(A),
+    !,
+    filter_supported_actions(Rest, FilteredRest).
+filter_supported_actions([_|Rest], Filtered) :-
+    filter_supported_actions(Rest, Filtered).
+
 apply_entity_actions([]).
 apply_entity_actions([action(stay, [_, _])|_Rest]) :-
     % 留在原地动作不改变位置
@@ -646,6 +689,13 @@ apply_entity_actions([action(move, [_, From, To])|_Rest]) :-
     ),
     set_entity_location(ToAtom),
     write('The Howler moves from '), write(FromAtom), write(' to '), write(ToAtom), write('.'), nl,
+    % 如果到达噪音位置，噪音诱饵失效
+    (active_noise_at(ToAtom) ->
+        clear_active_noise,
+        write('The noise dies out.'), nl
+    ;
+        true
+    ),
     % 检查实体是否和玩家在同一房间
     check_entity_player_same_room.
 apply_entity_actions([action(chase, [_, _, To, _])|_Rest]) :-

@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Implementation-Title: PDDL4J
+Implementation-Version: 4.0.0
+Built-By: Damien Pellier
+Premain-Class: org.openjdk.jol.vm.InstrumentationSupport
+Launcher-Agent-Class: org.openjdk.jol.vm.InstrumentationSupport$Installe
+ r
+

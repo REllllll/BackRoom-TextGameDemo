@@ -13,6 +13,14 @@
     holding/1,
     count_holding/1,
     item_location/2,
+    active_noise_at/1,
+    set_active_noise_at/1,
+    clear_active_noise/0,
+    entity_update_requested/0,
+    request_entity_update/0,
+    clear_entity_update_request/0,
+    suppress_entity_update_once/0,
+    consume_suppress_entity_update_once/0,
     set_player_location/1,
     set_entity_location/1,
     set_sanity/1,
@@ -48,6 +56,9 @@
 :- dynamic player_entered_dark_corridor/0.
 :- dynamic howler_chasing/0.
 :- dynamic cached_entity_plan/1.
+:- dynamic active_noise_at/1.
+:- dynamic entity_update_requested/0.
+:- dynamic suppress_entity_update_once_flag/0.
 
 % ----------------------------------------------------------------------------
 % 初始化游戏状态 (Initialize Game State)
@@ -65,6 +76,9 @@ init_game_state :-
     retractall(player_entered_dark_corridor),
     retractall(howler_chasing),
     retractall(cached_entity_plan(_)),
+    retractall(active_noise_at(_)),
+    retractall(entity_update_requested),
+    retractall(suppress_entity_update_once_flag),
     
     % 设置初始状态
     asserta(at_player(start_point)),
@@ -79,6 +93,48 @@ init_game_state :-
     asserta(item_location(tape_recorder, supply_closet)),
     
     write('Game state initialized.'), nl.
+
+% ----------------------------------------------------------------------------
+% 噪音状态（录音机诱饵）
+% ----------------------------------------------------------------------------
+
+% 设置当前有效噪音位置（只保留一个）
+set_active_noise_at(Location) :-
+    retractall(active_noise_at(_)),
+    asserta(active_noise_at(Location)).
+
+% 清除有效噪音
+clear_active_noise :-
+    retractall(active_noise_at(_)).
+
+% ----------------------------------------------------------------------------
+% 实体更新请求（用于 drop 等非移动动作也触发实体更新）
+% ----------------------------------------------------------------------------
+
+request_entity_update :-
+    (entity_update_requested ->
+        true
+    ;
+        asserta(entity_update_requested)
+    ).
+
+clear_entity_update_request :-
+    retractall(entity_update_requested).
+
+% ----------------------------------------------------------------------------
+% 本回合跳过一次实体更新（用于 drop 录音机：下回合才行动）
+% ----------------------------------------------------------------------------
+suppress_entity_update_once :-
+    (suppress_entity_update_once_flag ->
+        true
+    ;
+        asserta(suppress_entity_update_once_flag)
+    ).
+
+% 消费（检查并清除）一次性跳过标记：存在则 succeed，并清除；不存在则 fail
+consume_suppress_entity_update_once :-
+    retract(suppress_entity_update_once_flag),
+    !.
 
 % ----------------------------------------------------------------------------
 % 玩家位置操作 (Player Location Operations)

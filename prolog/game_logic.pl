@@ -11,6 +11,8 @@
     drop/1,
     use/1,
     look/0,
+    inventory/0,
+    inv/0,
     can_move/2,
     can_enter_room/1
 ]).
@@ -97,6 +99,8 @@ take(Item) :-
     count_holding(Count),
     Count < 2,
     take_item(Item),
+    % 如果拾起录音机，噪音（诱饵）应立即失效
+    (Item = tape_recorder -> clear_active_noise ; true),
     write('You pick up the '), write(Item), write('.'), nl,
     !.
 take(_Item) :-
@@ -161,6 +165,20 @@ look :-
     sanity(S),
     write('Sanity: '), write(S), nl.
 
+% ----------------------------------------------------------------------------
+% 查看背包/仓库 (Inventory)
+% ----------------------------------------------------------------------------
+
+inventory :-
+    findall(Item, holding(Item), Items),
+    count_holding(Count),
+    write('Inventory ('), write(Count), write('/2): '),
+    (Items = [] -> write('empty'); write_items(Items)),
+    nl.
+
+% inventory 的别名（方便输入）
+inv :- inventory.
+
 write_exits([]).
 write_exits([Dir-Room|Rest]) :-
     write(Dir), write(' -> '), write(Room),
@@ -193,9 +211,16 @@ check_entity_proximity :-
 % ----------------------------------------------------------------------------
 
 trigger_noise_event :-
-    at_player(_Location),
+    at_player(Location),
+    % 设置噪音位置（诱饵目标）
+    set_active_noise_at(Location),
+    % 标记下一回合需要更新实体（即使玩家没有移动）
+    request_entity_update,
+    % drop 当回合不让实体立刻行动（下一回合才开始按新目标走一步）
+    suppress_entity_update_once,
+    % 目标改变时清空缓存规划，避免沿用旧路径
+    clear_cached_entity_plan,
     write('The tape recorder makes a loud noise!'), nl,
     write('The Howler might be attracted to this location...'), nl,
-    % TODO: 更新 PDDL problem，将实体目标改为当前位置
     true.
 

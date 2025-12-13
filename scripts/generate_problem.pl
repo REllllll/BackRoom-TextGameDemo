@@ -95,11 +95,9 @@ write_connection_pairs(Stream, [From-To|Rest]) :-
 % ----------------------------------------------------------------------------
 
 write_noise_locations(Stream) :-
-    % TODO: 检查是否有录音机被丢弃，如果有，写入噪音位置
-    % item_location(tape_recorder, Loc) ->
-    %     write(Stream, '    (noise_at '), write(Stream, Loc), write(Stream, ')'), nl(Stream)
-    % ; true
-    true.
+    (active_noise_at(Loc) ->
+        write(Stream, '    (noise_at '), write(Stream, Loc), write(Stream, ')'), nl(Stream)
+    ; true).
 
 % ----------------------------------------------------------------------------
 % 写入目标状态

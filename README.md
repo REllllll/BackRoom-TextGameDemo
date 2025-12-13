@@ -149,6 +149,7 @@ ff -o pddl/domains/... -f ...     # 测试 PDDL 规划器
 - `take(item)` - 拾取物品
 - `drop(item)` - 丢弃物品
 - `use(item)` - 使用物品
+- `inventory` / `inv` - 查看当前携带的物品（最多 2 个）
 - `look` - 查看当前位置和周围环境
 - `quit` - 退出游戏
 

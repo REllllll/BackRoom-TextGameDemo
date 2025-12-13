@@ -29,6 +29,7 @@ start :-
     write('take(Item)       - Pick up an item'), nl,
     write('drop(Item)       - Drop an item you are holding'), nl,
     write('use(Item)        - Use an item'), nl,
+    write('inventory        - Show items you are carrying (alias: inv)'), nl,
     write('look             - Look around and see your current location'), nl,
     write('quit             - Exit the game'), nl,
     nl,
@@ -67,6 +68,12 @@ process_command(drop(Item)) :-
 process_command(use(Item)) :-
     use(Item),
     !.
+process_command(inventory) :-
+    inventory,
+    !.
+process_command(inv) :-
+    inventory,
+    !.
 process_command(look) :-
     look,
     !.
@@ -75,7 +82,7 @@ process_command(quit) :-
     halt,
     !.
 process_command(_) :-
-    write('Unknown command. Try: move(direction), take(item), drop(item), use(item), look, quit.'), nl.
+    write('Unknown command. Try: move(direction), take(item), drop(item), use(item), inventory, look, quit.'), nl.
 
 % ----------------------------------------------------------------------------
 % 实体更新 (Entity Update)
