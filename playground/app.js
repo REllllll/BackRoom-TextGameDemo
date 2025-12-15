@@ -212,8 +212,8 @@ async function executeCommand() {
             logMessage(result.output, result.success ? 'success' : 'error');
         }
         
-        // 总是更新游戏状态（包括房间信息），无论命令是否成功
-        // 这样进入新房间时能自动刷新状态
+        // Always refresh game state (including room info), even if the command failed.
+        // This ensures entering a new room updates the UI immediately.
         updateGameState(result);
         
         if (result.game_status) {
@@ -224,7 +224,7 @@ async function executeCommand() {
             }
         }
         
-        // 更新地图
+        // Update map
         drawMap();
     } catch (error) {
         logMessage(`Command failed: ${error.message}`, 'error');
@@ -301,10 +301,10 @@ async function autoTakeItem() {
                 logMessage(result.output, result.success ? 'success' : 'error');
             }
             
-            // 更新游戏状态
+            // Update game state
             updateGameState(result);
             
-            // 更新地图
+            // Update map
             drawMap();
             
             // If the command failed (e.g., item not found, hands full), stop trying
@@ -438,7 +438,7 @@ function drawMap() {
     const roomPositions = calculateRoomPositions(mapData);
     const adjustedPositions = adjustPositions(roomPositions, svg);
     
-    // 绘制连接
+    // Draw connections
     if (mapData.connections) {
         mapData.connections.forEach(conn => {
             const fromPos = adjustedPositions[conn.from];
@@ -456,7 +456,7 @@ function drawMap() {
         });
     }
     
-    // 绘制房间节点
+    // Draw room nodes
     mapData.rooms.forEach(room => {
         const pos = adjustedPositions[room];
         if (!pos) return;

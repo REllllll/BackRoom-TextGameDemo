@@ -2,37 +2,37 @@
 # ============================================================================
 # start_playground.sh
 # ============================================================================
-# 启动 Prolog HTTP server 用于 playground
-# 此脚本可以在主机上运行，但 Prolog 服务器会在开发容器内启动
+# Start the Prolog HTTP server for the playground
+# This script can run on the host, but the Prolog server will run inside the dev container
 # ============================================================================
 
-# 获取脚本所在目录
+# Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# 颜色输出
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 容器配置
+# Container configuration
 CONTAINER_NAME="liminal-logic-game-dev"
 COMPOSE_FILE="docker-compose.dev.yml"
 
-# 检测是否在容器中运行
+# Detect whether running inside a container
 IS_IN_CONTAINER=false
 if [ -f /.dockerenv ] || [ -n "${DOCKER_CONTAINER:-}" ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
     IS_IN_CONTAINER=true
 fi
 
-# 默认端口：容器内使用 8081
+# Default port: use 8081 inside the container
 PORT=${1:-8081}
 
-# 如果已经在容器内，直接运行服务器
+# If already in container, run the server directly
 if [ "$IS_IN_CONTAINER" = true ]; then
-    # 在容器内直接运行
+    # Running inside container
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}Liminal Logic: Prolog Playground${NC}"
     echo -e "${GREEN}========================================${NC}"
@@ -41,13 +41,13 @@ if [ "$IS_IN_CONTAINER" = true ]; then
     echo -e "${BLUE}Container: ${CONTAINER_NAME}${NC}"
     echo ""
     
-    # 检查 Prolog 是否安装
+    # Check whether Prolog is installed
     if ! command -v swipl &> /dev/null; then
         echo -e "${RED}Error: SWI-Prolog is not installed.${NC}"
         exit 1
     fi
     
-    # 检查必要文件
+    # Check required files
     if [ ! -f "prolog/http_server.pl" ]; then
         echo -e "${RED}Error: prolog/http_server.pl not found.${NC}"
         exit 1
@@ -58,7 +58,7 @@ if [ "$IS_IN_CONTAINER" = true ]; then
         exit 1
     fi
     
-    # 显示启动信息
+    # Print startup info
     echo -e "${YELLOW}Starting HTTP server on port ${PORT}...${NC}"
     echo -e "${BLUE}Server will bind to 0.0.0.0:${PORT}${NC}"
     echo -e "${BLUE}Access URL: http://localhost:${PORT}${NC}"
@@ -66,31 +66,31 @@ if [ "$IS_IN_CONTAINER" = true ]; then
     echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
     echo ""
     
-    # 启动服务器
+    # Start server
     swipl -s prolog/http_server.pl -g "game_http_server:start_server(${PORT}), halt_on_error, halt."
     exit $?
 fi
 
-# 在主机上运行：需要在容器内启动服务器
+# On host: start the server inside the container
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Liminal Logic: Prolog Playground${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
-# 切换到项目根目录
+# Change to project root
 cd "$PROJECT_ROOT"
 
-# 检测是否需要 sudo（通过环境变量或自动检测）
+# Detect whether sudo is needed (via env var or auto-detection)
 if [ -n "$USE_SUDO" ]; then
     USE_SUDO_FLAG="$USE_SUDO"
 elif docker ps &> /dev/null; then
     USE_SUDO_FLAG=""
 else
-    # 自动检测：如果普通用户无法访问 docker，则使用 sudo
+    # Auto-detect: if docker isn't accessible as the current user, use sudo
     USE_SUDO_FLAG="sudo"
 fi
 
-# 检测 docker compose 命令（支持 docker compose 和 docker-compose）
+# Detect docker compose command (supports `docker compose` and `docker-compose`)
 if command -v docker &> /dev/null && $USE_SUDO_FLAG docker compose version &> /dev/null 2>&1; then
     DOCKER_COMPOSE="$USE_SUDO_FLAG docker compose"
 elif command -v docker-compose &> /dev/null; then
@@ -103,7 +103,7 @@ else
     exit 1
 fi
 
-# 检查容器是否运行
+# Check whether the container is running
 if ! $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "Up"; then
     echo -e "${YELLOW}Development container is not running. Starting container...${NC}"
     $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
@@ -111,7 +111,7 @@ if ! $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "Up"; then
     sleep 3
 fi
 
-# 检查容器是否真的在运行
+# Confirm the container is running
 if ! $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "Up"; then
     echo -e "${RED}Error: Failed to start development container${NC}"
     exit 1
@@ -127,12 +127,12 @@ echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
 echo ""
 
-# 在容器内启动 Prolog HTTP server
-# 使用 dev.sh run 在容器内执行命令
+# Start the Prolog HTTP server in the container
+# Repo convention: use dev.sh run to execute commands in the container
 echo -e "${GREEN}Launching Prolog HTTP server in container...${NC}"
 ./scripts/dev.sh run swipl -s prolog/http_server.pl -g "game_http_server:start_server(${PORT}), halt_on_error, halt."
 
-# 检查退出状态
+# Check exit status
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     echo ""

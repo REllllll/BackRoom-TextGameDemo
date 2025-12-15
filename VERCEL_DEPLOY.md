@@ -1,229 +1,117 @@
-# Vercel 部署指南
+# Vercel Deployment Guide
 
-本指南说明如何将前端部署到 Vercel，并通过 Serverless Function 代理访问后端 HTTP 服务器。
+This guide explains how to deploy the **frontend** to Vercel and use a **Serverless Function proxy** to reach the backend HTTP API (avoiding browser mixed-content restrictions).
 
-## 问题背景
+## Why a proxy is needed
 
-- Vercel 使用 HTTPS 部署前端
-- 后端服务器在中国境内，只能使用 HTTP
-- 浏览器会阻止 HTTPS 页面请求 HTTP 资源（混合内容问题）
+- Vercel serves your frontend over **HTTPS**
+- If your backend is only available over **HTTP**, browsers will block HTTPS pages from calling HTTP resources (mixed content)
 
-## 解决方案
+## Solution
 
-使用 Vercel Serverless Functions 作为代理，将前端的 HTTPS 请求转发到后端的 HTTP 服务器。
+Use a Vercel Serverless Function as an HTTPS-to-HTTP proxy:
 
-## 部署步骤
+```
+Frontend (HTTPS) -> Vercel Serverless Function (HTTPS) -> Backend (HTTP)
+```
 
-### 1. 准备项目
+The proxy lives at `playground/api/proxy/[...path].js`.
 
-确保项目包含以下文件：
-- `playground/api/proxy/[...path].js` - Serverless Function 代理
-- `vercel.json` - Vercel 配置文件（在项目根目录）
-- `playground/` - 前端文件目录
+## Deployment steps
 
-### 2. 在 Vercel 中创建项目
+### 1) Ensure these files exist
 
-1. 登录 [Vercel](https://vercel.com)
-2. 点击 "Add New Project"
-3. 导入你的 Git 仓库
-4. 配置项目设置：
+- `playground/api/proxy/[...path].js` - Serverless Function proxy
+- `vercel.json` - Vercel config (repo root)
+- `playground/` - static frontend assets
+
+### 2) Create a Vercel project
+
+1. Log in to Vercel
+2. Add a new project and import your Git repository
+3. Set:
    - **Framework Preset**: Other
-   - **Root Directory**: `playground`（重要：设置为 playground 目录）
-   - **Build Command**: 留空（静态文件无需构建）
-   - **Output Directory**: 留空
+   - **Root Directory**: `playground`
+   - **Build Command**: empty (static)
+   - **Output Directory**: empty
 
-### 3. 配置环境变量
+### 3) Configure environment variables
 
-在 Vercel 项目设置中添加环境变量：
-
-1. 进入项目设置 → Environment Variables
-2. 添加以下变量：
+In your Vercel project settings, add:
 
 ```
 BACKEND_URL=http://your-backend-server.com:8080
 ```
 
-**重要提示**：
-- `BACKEND_URL` 应该是完整的后端服务器地址（包含协议和端口）
-- 不要包含 `/api` 路径，代理函数会自动添加
-- 例如：`http://123.456.789.0:8080` 或 `http://backend.example.com:8080`
+Notes:
 
-### 4. 部署
+- `BACKEND_URL` must include scheme + host + port
+- Do **not** include `/api` (the proxy appends it)
 
-1. 推送代码到 Git 仓库
-2. Vercel 会自动检测并部署
-3. 或者点击 "Deploy" 手动触发部署
+### 4) Deploy
 
-### 5. 验证部署
+Push to your Git repo (auto-deploy), or click **Deploy** in Vercel.
 
-部署完成后，访问你的 Vercel 域名，测试以下功能：
-- 初始化游戏
-- 执行命令
-- 查看游戏状态
-- 查看地图
+### 5) Verify
 
-## 工作原理
+Open the Vercel site and test:
 
-```
-前端 (HTTPS) → Vercel Serverless Function (HTTPS) → 后端 (HTTP)
-```
+- init game
+- run commands
+- fetch status
+- load map
 
-1. 前端发送请求到 `/api/proxy/status`
-2. Vercel Serverless Function 接收请求
-3. Function 转发请求到后端服务器（使用环境变量 `BACKEND_URL`）
-4. 后端响应返回给 Function
-5. Function 将响应返回给前端
+## Local development
 
-## 本地开发
-
-本地开发时，前端会检测到 `localhost`，自动使用 `/api` 路径（通过 nginx 代理）。
-
-如果需要测试 Vercel 代理功能，可以使用 Vercel CLI：
+When running locally, the frontend detects `localhost` and uses `/api` (via the nginx proxy, if configured). To test the Vercel proxy locally, use Vercel CLI:
 
 ```bash
-# 安装 Vercel CLI
 npm i -g vercel
-
-# 在项目根目录运行
 vercel dev
 ```
 
-## 环境变量说明
+## Troubleshooting
 
-### `BACKEND_URL`（必需）
+### CORS errors
 
-后端服务器的完整地址，格式：
-```
-http://hostname:port
-```
+Check:
 
-示例：
-```
-http://123.456.789.0:8080
-http://backend.example.com:8080
-```
+- proxy function CORS headers
+- backend CORS configuration for your Vercel domain
 
-### 可选：前端直接连接后端
+### "fetch failed" / "Proxy error"
 
-如果后端支持 HTTPS 和 CORS，可以通过 meta 标签或全局变量配置前端直接连接：
+Most commonly:
 
-在 `index.html` 中添加：
-```html
-<meta name="api-url" content="https://your-backend-server.com">
+- `BACKEND_URL` is missing or malformed
+- backend service is not reachable (firewall, DNS, network)
+
+Verify backend health:
+
+```bash
+curl http://localhost:8080/api/status
 ```
 
-或者在页面加载前设置：
-```javascript
-window.__ENV__ = { API_URL: 'https://your-backend-server.com' };
-```
+### 502 Bad Gateway
 
-## 故障排查
+Likely causes:
 
-### 1. CORS 错误
+- backend not running
+- backend not reachable from Vercel
+- `BACKEND_URL` invalid
 
-如果遇到 CORS 错误，检查：
-- Serverless Function 是否正确设置了 CORS 头
-- 后端服务器是否允许来自 Vercel 域名的请求
+### 404 Not Found
 
-### 2. "fetch failed" 或 "Proxy error" 错误
+Check:
 
-这是最常见的错误，可能原因和解决方法：
+- `vercel.json` routing
+- correct path: `/api/proxy/...` (frontend) -> `/api/...` (backend)
 
-#### 检查环境变量
-1. 进入 Vercel 项目设置 → Environment Variables
-2. 确认 `BACKEND_URL` 已设置
-3. 确认格式正确：`http://your-server.com:8080`（不要包含 `/api` 路径）
-4. 重新部署项目（环境变量更改后需要重新部署）
+## Security notes
 
-#### 检查后端服务器
-1. **服务器是否运行**：
-   ```bash
-   # 在服务器上检查
-   curl http://localhost:8080/api/status
-   ```
+- Restrict `Access-Control-Allow-Origin` in production to your deployed domain
+- Do not hardcode backend URLs; use env vars
+- Prefer HTTPS on the backend when possible
 
-2. **服务器是否可以从外部访问**：
-   ```bash
-   # 从其他机器测试
-   curl http://your-server-ip:8080/api/status
-   ```
 
-3. **防火墙设置**：
-   - 确保后端服务器的端口（如 8080）已开放
-   - 检查云服务器安全组规则
-   - 检查服务器防火墙（ufw, firewalld, iptables）
-
-4. **网络连通性**：
-   - Vercel 服务器需要能够访问你的后端服务器
-   - 如果后端在内网，需要使用内网穿透或 VPN
-   - 确保后端服务器有公网 IP 或通过其他方式可访问
-
-#### 检查错误响应
-代理函数现在会返回更详细的错误信息，包括：
-- `backendUrl`: 配置的后端地址
-- `targetUrl`: 实际请求的完整 URL
-- `hint`: 错误提示信息
-
-查看 Vercel Function 日志：
-1. 进入 Vercel 项目 → Functions 标签
-2. 查看 `/api/proxy` 函数的日志
-3. 查找错误详情和请求的 URL
-
-### 3. 502 Bad Gateway
-
-可能原因：
-- `BACKEND_URL` 环境变量未设置或格式错误
-- 后端服务器无法访问（防火墙、网络问题）
-- 后端服务器未运行
-
-### 4. 404 Not Found
-
-检查：
-- `vercel.json` 路由配置是否正确
-- API 路径是否正确（应该是 `/api/proxy/...`）
-- 后端服务器的 API 路径是否正确（应该是 `/api/...`）
-
-### 5. 超时
-
-如果请求超时，可能是：
-- 后端服务器响应慢
-- 网络延迟
-- Vercel Function 超时（默认 10 秒，Pro 计划可延长）
-- 代理函数设置了 20 秒超时，如果后端响应很慢可能会超时
-
-## 安全建议
-
-1. **限制 CORS 来源**（生产环境）：
-   修改 `api/proxy/[...path].js` 中的 CORS 设置：
-   ```javascript
-   res.setHeader('Access-Control-Allow-Origin', 'https://your-app.vercel.app');
-   ```
-
-2. **使用环境变量**：
-   不要在代码中硬编码后端地址
-
-3. **HTTPS 后端**（如果可能）：
-   如果后端可以配置 HTTPS，建议使用 HTTPS，避免代理层
-
-## 相关文件
-
-- `playground/api/proxy/[...path].js` - Serverless Function 代理实现
-- `vercel.json` - Vercel 配置文件（在项目根目录）
-- `playground/app.js` - 前端 API 调用逻辑
-- `.env.example` - 环境变量示例
-
-## 目录结构
-
-```
-项目根目录/
-├── vercel.json          # Vercel 配置（在根目录）
-├── playground/          # Vercel 根目录
-│   ├── index.html
-│   ├── app.js
-│   ├── style.css
-│   └── api/            # Serverless Functions
-│       └── proxy/
-│           └── [...path].js
-└── ...
-```
 

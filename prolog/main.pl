@@ -1,7 +1,8 @@
 % ============================================================================
 % main.pl
 % ============================================================================
-% 主程序入口：整合所有模块，处理游戏循环和 PDDL 交互
+% Main entry point: wires modules together, runs the game loop, and integrates
+% with the PDDL planner.
 % ============================================================================
 
 :- use_module(knowledge_base).
@@ -11,7 +12,7 @@
 :- use_module(pddl_interface).
 
 % ----------------------------------------------------------------------------
-% 游戏主循环 (Main Game Loop)
+% Main Game Loop
 % ----------------------------------------------------------------------------
 
 start :-
@@ -24,6 +25,7 @@ start :-
     write('The yellow wallpaper, the buzzing lights...'), nl,
     write('Find the Manila Room and escape!'), nl,
     nl,
+    write('Available commands:'), nl,
     write('--- Available Commands ---'), nl,
     write('move(Direction)  - Move in a direction (north, south, east, west)'), nl,
     write('take(Item)       - Pick up an item'), nl,
@@ -48,12 +50,12 @@ game_loop :-
     write('> '),
     read(Command),
     process_command(Command),
-    update_entity,  % 更新实体位置（基于 PDDL 规划）
+    update_entity,  % Update entity position (based on PDDL planning)
     nl,
     game_loop.
 
 % ----------------------------------------------------------------------------
-% 命令处理 (Command Processing)
+% Command Processing
 % ----------------------------------------------------------------------------
 
 process_command(move(Direction)) :-
@@ -85,16 +87,16 @@ process_command(_) :-
     write('Unknown command. Try: move(direction), take(item), drop(item), use(item), inventory, look, quit.'), nl.
 
 % ----------------------------------------------------------------------------
-% 实体更新 (Entity Update)
+% Entity Update
 % ----------------------------------------------------------------------------
 
 update_entity :-
-    % 使用 PDDL 接口模块更新实体位置
+    % Update entity position via the PDDL interface module
     update_entity_from_pddl.
 
 % ----------------------------------------------------------------------------
-% 辅助函数 (Helper Functions)
+% Helper Functions
 % ----------------------------------------------------------------------------
 
-% PDDL 相关功能已移至 pddl_interface.pl 模块
+% PDDL-related logic has been moved to the pddl_interface.pl module
 

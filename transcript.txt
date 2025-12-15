@@ -1,0 +1,225 @@
+?- start.
+========================================
+LIMINAL LOGIC: Escape from Level 0
+========================================
+
+You have noclipped out of reality...
+You find yourself in Level 0 of the Backrooms.
+The yellow wallpaper, the buzzing lights...
+Find the Manila Room and escape!
+
+Available commands:
+--- Available Commands ---
+move(Direction)  - Move in a direction (north, south, east, west)
+take(Item)       - Pick up an item
+drop(Item)       - Drop an item you are holding
+use(Item)        - Use an item
+inventory        - Show items you are carrying (alias: inv)
+look             - Look around and see your current location
+quit             - Exit the game
+
+Game state initialized.
+You are in start_point.
+Exits: east -> yellow_hallway
+Items here: none
+Sanity: 100
+
+> move(east).
+You move to yellow_hallway.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in yellow_hallway.
+Exits: west -> start_point, north -> dark_corridor, east -> the_hub, south -> supply_closet
+Items here: almond_water
+Sanity: 99
+
+> |: move(east).
+You move to the_hub.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in the_hub.
+Exits: west -> yellow_hallway, east -> manila_room, south -> electrical_room
+Items here: none
+Sanity: 98
+
+> |: move(east).
+The door is locked. You need a key to enter.
+You cannot move in that direction, or the room is inaccessible.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in the_hub.
+Exits: west -> yellow_hallway, east -> manila_room, south -> electrical_room
+Items here: none
+Sanity: 93
+
+> |: move(south).
+You move to electrical_room.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in electrical_room.
+Exits: north -> the_hub, west -> supply_closet
+Items here: flashlight
+Sanity: 92
+
+> |: take(flashlight).
+You pick up the flashlight.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in electrical_room.
+Exits: north -> the_hub, west -> supply_closet
+Items here: none
+Sanity: 92
+
+> |: move(west).
+You move to supply_closet.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in supply_closet.
+Exits: north -> yellow_hallway, east -> electrical_room
+Items here: tape_recorder
+Sanity: 91
+
+> |: take(tape_recorder).
+You pick up the tape_recorder.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in supply_closet.
+Exits: north -> yellow_hallway, east -> electrical_room
+Items here: none
+Sanity: 91
+
+> |: move(north).
+You move to yellow_hallway.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in yellow_hallway.
+Exits: west -> start_point, north -> dark_corridor, east -> the_hub, south -> supply_closet
+Items here: almond_water
+Sanity: 90
+
+> |: move(north).
+You move to dark_corridor.
+*** A LOUD HOWL ECHOES FROM THE ADJACENT ROOM! ***
+The Howler has heard you!
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in dark_corridor.
+Exits: south -> yellow_hallway, east -> dead_end
+Items here: key
+Sanity: 84
+
+> |: drop(flashlight).
+You drop the flashlight.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in dark_corridor.
+Exits: south -> yellow_hallway, east -> dead_end
+Items here: flashlight, key
+Sanity: 84
+
+> |: take(key).
+You pick up the key.
+PDDL planner executed successfully.
+Parsed actions: [action(stay,[howler,dead_end])]
+The Howler stays in place.
+Entity moved based on PDDL plan.
+
+You are in dark_corridor.
+Exits: south -> yellow_hallway, east -> dead_end
+Items here: flashlight
+Sanity: 84
+
+> |: move(south).
+You move to yellow_hallway.
+*** The Howler begins its pursuit! ***
+PDDL planner executed successfully.
+The Howler moves from dead_end to dark_corridor.
+
+You are in yellow_hallway.
+Exits: west -> start_point, north -> dark_corridor, east -> the_hub, south -> supply_closet
+Items here: almond_water
+Sanity: 83
+
+> |: move(south).
+You move to supply_closet.
+The Howler moves from dark_corridor to yellow_hallway.
+
+You are in supply_closet.
+Exits: north -> yellow_hallway, east -> electrical_room
+Items here: none
+Sanity: 82
+
+> |: drop(tape_recorder).
+You drop the tape_recorder.
+The tape recorder makes a loud noise!
+The Howler might be attracted to this location...
+
+You are in supply_closet.
+Exits: north -> yellow_hallway, east -> electrical_room
+Items here: tape_recorder
+Sanity: 82
+
+> |: move(east).
+You move to electrical_room.
+PDDL planner executed successfully.
+The Howler moves from yellow_hallway to supply_closet.
+The noise dies out.
+
+You are in electrical_room.
+Exits: north -> the_hub, west -> supply_closet
+Items here: none
+Sanity: 81
+
+> |: move(north).
+You move to the_hub.
+PDDL planner executed successfully.
+The Howler moves from supply_closet to yellow_hallway.
+
+You are in the_hub.
+Exits: west -> yellow_hallway, east -> manila_room, south -> electrical_room
+Items here: none
+Sanity: 80
+
+> |: move(east).
+You move to manila_room.
+The Howler moves from yellow_hallway to the_hub.
+
+========================================
+YOU ESCAPED!
+You noclipped out of Level 0!
+========================================
+true.
+
+?- halt.
+
+

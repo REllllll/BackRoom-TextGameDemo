@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 开发模式：交互式容器，不自动启动游戏
+  # Dev mode: interactive container; does not auto-start the game
   game-dev:
     build:
       context: .
@@ -17,17 +17,17 @@ services:
     working_dir: /workspace
     stdin_open: true
     tty: true
-    # 开发模式：启动 bash shell 而不是直接运行游戏
+    # Dev mode: start a bash shell instead of running the game directly
     command: /bin/bash
     networks:
       - liminal-network
-    # 保持容器运行，即使没有命令
+    # Keep container running even when no command is attached
     restart: unless-stopped
-    # 端口映射：将容器的 8080 端口映射到主机的 8081 端口
-    # 绑定到 0.0.0.0 以允许外部访问
-    # 如果主机 8080 端口被占用，可以使用其他端口，如 8081
+    # Port mapping: map container port 8080 to host port 8081
+    # Bind to 0.0.0.0 to allow external access
+    # If host port 8080 is in use, you can choose another port (e.g. 8081)
     ports:
-      - "0.0.0.0:8081:8081"  # 主机IP:主机端口:容器端口
+      - "0.0.0.0:8081:8081"  # host_ip:host_port:container_port
 
 networks:
   liminal-network:

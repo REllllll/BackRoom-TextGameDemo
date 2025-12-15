@@ -1,8 +1,8 @@
 % ============================================================================
 % game_state.pl
 % ============================================================================
-% 动态状态管理：管理游戏运行时的动态事实
-% 包括：玩家位置、实体位置、理智值、持有物品等
+% Dynamic state management: runtime facts for the game.
+% Includes: player location, entity location, sanity, held items, etc.
 % ============================================================================
 
 :- module(game_state, [
@@ -43,7 +43,7 @@
 ]).
 
 % ----------------------------------------------------------------------------
-% 动态事实声明 (Dynamic Facts Declaration)
+% Dynamic Facts Declaration
 % ----------------------------------------------------------------------------
 
 :- dynamic at_player/1.
@@ -61,11 +61,11 @@
 :- dynamic suppress_entity_update_once_flag/0.
 
 % ----------------------------------------------------------------------------
-% 初始化游戏状态 (Initialize Game State)
+% Initialize Game State
 % ----------------------------------------------------------------------------
 
 init_game_state :-
-    % 清除所有动态事实
+    % Clear all dynamic facts
     retractall(at_player(_)),
     retractall(at_entity(_)),
     retractall(sanity(_)),
@@ -80,13 +80,13 @@ init_game_state :-
     retractall(entity_update_requested),
     retractall(suppress_entity_update_once_flag),
     
-    % 设置初始状态
+    % Set initial state
     asserta(at_player(start_point)),
     asserta(at_entity(dead_end)),
     asserta(sanity(100)),
-    asserta(player_previous_location(start_point)),  % 初始时上一位置也是起始点
+    asserta(player_previous_location(start_point)),  % Initially, previous location is also the start point
     
-    % 设置物品初始位置
+    % Set initial item locations
     asserta(item_location(key, dark_corridor)),
     asserta(item_location(almond_water, yellow_hallway)),
     asserta(item_location(flashlight, electrical_room)),
@@ -95,20 +95,20 @@ init_game_state :-
     write('Game state initialized.'), nl.
 
 % ----------------------------------------------------------------------------
-% 噪音状态（录音机诱饵）
+% Noise state (tape recorder bait)
 % ----------------------------------------------------------------------------
 
-% 设置当前有效噪音位置（只保留一个）
+% Set the current active noise location (keep only one)
 set_active_noise_at(Location) :-
     retractall(active_noise_at(_)),
     asserta(active_noise_at(Location)).
 
-% 清除有效噪音
+% Clear active noise
 clear_active_noise :-
     retractall(active_noise_at(_)).
 
 % ----------------------------------------------------------------------------
-% 实体更新请求（用于 drop 等非移动动作也触发实体更新）
+% Entity update request (so non-move actions like drop can also trigger updates)
 % ----------------------------------------------------------------------------
 
 request_entity_update :-
@@ -122,7 +122,8 @@ clear_entity_update_request :-
     retractall(entity_update_requested).
 
 % ----------------------------------------------------------------------------
-% 本回合跳过一次实体更新（用于 drop 录音机：下回合才行动）
+% Skip entity update once for this turn (used by dropping the tape recorder:
+% the entity acts starting next turn)
 % ----------------------------------------------------------------------------
 suppress_entity_update_once :-
     (suppress_entity_update_once_flag ->
@@ -131,28 +132,29 @@ suppress_entity_update_once :-
         asserta(suppress_entity_update_once_flag)
     ).
 
-% 消费（检查并清除）一次性跳过标记：存在则 succeed，并清除；不存在则 fail
+% Consume (check and clear) the one-time skip flag:
+% if present, succeed and clear; if absent, fail.
 consume_suppress_entity_update_once :-
     retract(suppress_entity_update_once_flag),
     !.
 
 % ----------------------------------------------------------------------------
-% 玩家位置操作 (Player Location Operations)
+% Player Location Operations
 % ----------------------------------------------------------------------------
 
 set_player_location(Location) :-
-    % 保存当前位置为上一位置（如果存在）
+    % Save current location as previous location (if present)
     (at_player(CurrentLoc) ->
         (CurrentLoc \= Location ->
-            % 位置确实改变了，保存上一位置
+            % Location actually changed; save previous location
             retractall(player_previous_location(_)),
             asserta(player_previous_location(CurrentLoc))
         ;
-            % 位置没有改变，不需要更新上一位置
+            % Location did not change; no need to update previous location
             true
         )
     ;
-        % 如果没有当前位置（初始化时），使用当前位置作为上一位置
+        % If there is no current location (during init), use it as previous location
         (\+ player_previous_location(_) ->
             asserta(player_previous_location(Location))
         ;
@@ -162,13 +164,13 @@ set_player_location(Location) :-
     retractall(at_player(_)),
     asserta(at_player(Location)).
 
-% 设置玩家上一位置（用于测试或特殊场景）
+% Set player's previous location (for tests or special scenarios)
 set_player_previous_location(Location) :-
     retractall(player_previous_location(_)),
     asserta(player_previous_location(Location)).
 
 % ----------------------------------------------------------------------------
-% 实体位置操作 (Entity Location Operations)
+% Entity Location Operations
 % ----------------------------------------------------------------------------
 
 set_entity_location(Location) :-
@@ -176,7 +178,7 @@ set_entity_location(Location) :-
     asserta(at_entity(Location)).
 
 % ----------------------------------------------------------------------------
-% 理智值操作 (Sanity Operations)
+% Sanity Operations
 % ----------------------------------------------------------------------------
 
 set_sanity(Value) :-
@@ -189,22 +191,22 @@ add_sanity(Delta) :-
     set_sanity(NewValue).
 
 % ----------------------------------------------------------------------------
-% 物品操作 (Item Operations)
+% Item Operations
 % ----------------------------------------------------------------------------
 
-% 统计持有的物品数量
+% Count held items
 count_holding(Count) :-
     findall(Item, holding(Item), Items),
     length(Items, Count).
 
-% 拾取物品（最多2个）
+% Take item (max 2)
 take_item(Item) :-
     count_holding(Count),
     Count < 2,
     asserta(holding(Item)),
     retractall(item_location(Item, _)).
 
-% 丢弃物品（只删除指定的物品）
+% Drop item (remove only the specified item)
 drop_item(Item) :-
     holding(Item),
     at_player(Location),
@@ -216,7 +218,7 @@ update_item_location(Item, Location) :-
     asserta(item_location(Item, Location)).
 
 % ----------------------------------------------------------------------------
-% 游戏结束状态操作 (Game Over Status Operations)
+% Game Over Status Operations
 % ----------------------------------------------------------------------------
 
 set_game_over_status(Status) :-
@@ -227,47 +229,47 @@ is_game_over :-
     game_over_status(_).
 
 % ----------------------------------------------------------------------------
-% Dark Corridor 和 Howler 追逐状态操作
+% Dark Corridor and Howler chase state
 % ----------------------------------------------------------------------------
 
-% 检查玩家是否已经进入过dark_corridor
+% Check whether the player has entered dark_corridor
 player_entered_dark_corridor :-
     player_entered_dark_corridor.
 
-% 设置玩家已进入dark_corridor
+% Mark that the player has entered dark_corridor
 set_player_entered_dark_corridor :-
     (player_entered_dark_corridor ->
-        true  % 已经设置过，不需要重复设置
+        true  % Already set; no need to set again
     ;
         asserta(player_entered_dark_corridor)
     ).
 
-% 检查Howler是否已经开始追逐
+% Check whether the Howler has started chasing
 howler_chasing :-
     howler_chasing.
 
-% 设置Howler开始追逐
+% Mark that the Howler has started chasing
 set_howler_chasing :-
     (howler_chasing ->
-        true  % 已经开始追逐，不需要重复设置
+        true  % Already chasing; no need to set again
     ;
         asserta(howler_chasing)
     ).
 
 % ----------------------------------------------------------------------------
-% 规划路径缓存操作
+% Plan cache operations
 % ----------------------------------------------------------------------------
 
-% 获取缓存的规划路径
+% Get cached plan
 cached_entity_plan(Plan) :-
     cached_entity_plan(Plan).
 
-% 设置缓存的规划路径
+% Set cached plan
 set_cached_entity_plan(Plan) :-
     retractall(cached_entity_plan(_)),
     asserta(cached_entity_plan(Plan)).
 
-% 清除缓存的规划路径
+% Clear cached plan
 clear_cached_entity_plan :-
     retractall(cached_entity_plan(_)).
 

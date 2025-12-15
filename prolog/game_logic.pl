@@ -1,8 +1,8 @@
 % ============================================================================
 % game_logic.pl
 % ============================================================================
-% 游戏逻辑：实现游戏命令和规则推理
-% 包括：移动、拾取、丢弃、使用物品等命令
+% Game logic: implements player commands and rule reasoning.
+% Includes commands such as: move, take, drop, use, etc.
 % ============================================================================
 
 :- module(game_logic, [
@@ -22,7 +22,7 @@
 :- use_module(win_conditions).
 
 % ----------------------------------------------------------------------------
-% 移动命令 (Move Command)
+% Move Command
 % ----------------------------------------------------------------------------
 
 move(Direction) :-
@@ -30,22 +30,22 @@ move(Direction) :-
     connect(CurrentRoom, Direction, NextRoom),
     can_enter_room(NextRoom),
     at_entity(EntityLoc),
-    % 检查玩家是否移动到相邻房间（Howler 会吼叫）
+    % If the player moves into a room adjacent to the Howler, it will howl.
     (connect(EntityLoc, _, NextRoom) ->
         write('You move to '), write(NextRoom), write('.'), nl,
         write('*** A LOUD HOWL ECHOES FROM THE ADJACENT ROOM! ***'), nl,
         write('The Howler has heard you!'), nl,
-        add_sanity(-5)  % 听到吼叫，理智值下降
+        add_sanity(-5)  % Heard a howl; sanity decreases
     ;
         write('You move to '), write(NextRoom), write('.'), nl
     ),
-    % 检查玩家是否进入dark_corridor
+    % Check whether the player enters dark_corridor
     (NextRoom = dark_corridor ->
         set_player_entered_dark_corridor
     ;
         true
     ),
-    % 检查玩家是否从dark_corridor离开（第一次离开时启动Howler追逐）
+    % Check whether the player leaves dark_corridor (start the Howler chase on first exit)
     (CurrentRoom = dark_corridor, player_entered_dark_corridor, \+ howler_chasing ->
         set_howler_chasing,
         write('*** The Howler begins its pursuit! ***'), nl
@@ -53,36 +53,36 @@ move(Direction) :-
         true
     ),
     set_player_location(NextRoom),
-    add_sanity(-1),  % 移动消耗理智值
+    add_sanity(-1),  % Moving consumes sanity
     check_entity_proximity,
     !.
 move(_) :-
     write('You cannot move in that direction, or the room is inaccessible.'), nl.
 
 % ----------------------------------------------------------------------------
-% 进入房间检查 (Room Entry Check)
+% Room Entry Check
 % ----------------------------------------------------------------------------
 
 can_enter_room(Room) :-
-    % 首先检查是否需要钥匙
+    % First, check whether a key is required
     (requires_key(Room), \+ holding(key) ->
         write('The door is locked. You need a key to enter.'), nl,
-        add_sanity(-5),  % 尝试进入需要钥匙的房间失败，理智值下降
-        fail  % 明确失败，不允许进入
+        add_sanity(-5),  % Failed attempt to enter a locked room decreases sanity
+        fail  % Explicitly fail; do not allow entry
     ;
-        true  % 不需要钥匙，或者持有钥匙，继续检查
+        true  % No key needed, or key is held; continue checking
     ),
-    % 然后检查是否黑暗
+    % Then, check whether the room is dark
     (is_dark(Room), \+ holding(flashlight) ->
         write('It is too dark to enter. You need a flashlight.'), nl,
-        add_sanity(-5),  % 尝试进入黑暗房间失败，理智值下降
-        fail  % 明确失败，不允许进入
+        add_sanity(-5),  % Failed attempt to enter a dark room decreases sanity
+        fail  % Explicitly fail; do not allow entry
     ;
-        true  % 不是黑暗的，或者持有手电筒，允许进入
+        true  % Not dark, or flashlight is held; allow entry
     ).
 
 % ----------------------------------------------------------------------------
-% 移动可行性检查 (Move Feasibility Check)
+% Move Feasibility Check
 % ----------------------------------------------------------------------------
 
 can_move(From, To) :-
@@ -90,7 +90,7 @@ can_move(From, To) :-
     can_enter_room(To).
 
 % ----------------------------------------------------------------------------
-% 拾取物品 (Take Item)
+% Take Item
 % ----------------------------------------------------------------------------
 
 take(Item) :-
@@ -99,7 +99,7 @@ take(Item) :-
     count_holding(Count),
     Count < 2,
     take_item(Item),
-    % 如果拾起录音机，噪音（诱饵）应立即失效
+    % If the tape recorder is picked up, the active noise (bait) should end immediately
     (Item = tape_recorder -> clear_active_noise ; true),
     write('You pick up the '), write(Item), write('.'), nl,
     !.
@@ -112,21 +112,21 @@ take(Item) :-
     write('The '), write(Item), write(' is not here.'), nl.
 
 % ----------------------------------------------------------------------------
-% 丢弃物品 (Drop Item)
+% Drop Item
 % ----------------------------------------------------------------------------
 
 drop(Item) :-
     holding(Item),
     drop_item(Item),
     write('You drop the '), write(Item), write('.'), nl,
-    % 如果丢弃录音机，触发噪音事件
+    % If the tape recorder is dropped, trigger a noise event
     (Item = tape_recorder -> trigger_noise_event; true),
     !.
 drop(_) :-
     write('You are not holding that item.'), nl.
 
 % ----------------------------------------------------------------------------
-% 使用物品 (Use Item)
+% Use Item
 % ----------------------------------------------------------------------------
 
 use(almond_water) :-
@@ -148,7 +148,7 @@ use(_) :-
     write('You are not holding that item.'), nl.
 
 % ----------------------------------------------------------------------------
-% 查看周围 (Look Around)
+% Look Around
 % ----------------------------------------------------------------------------
 
 look :-
@@ -166,7 +166,7 @@ look :-
     write('Sanity: '), write(S), nl.
 
 % ----------------------------------------------------------------------------
-% 查看背包/仓库 (Inventory)
+% Inventory
 % ----------------------------------------------------------------------------
 
 inventory :-
@@ -176,7 +176,7 @@ inventory :-
     (Items = [] -> write('empty'); write_items(Items)),
     nl.
 
-% inventory 的别名（方便输入）
+% Alias for inventory (convenience)
 inv :- inventory.
 
 write_exits([]).
@@ -192,7 +192,7 @@ write_items([Item|Rest]) :-
     write_items(Rest).
 
 % ----------------------------------------------------------------------------
-% 实体接近检查 (Entity Proximity Check)
+% Entity Proximity Check
 % ----------------------------------------------------------------------------
 
 check_entity_proximity :-
@@ -201,24 +201,25 @@ check_entity_proximity :-
     (PlayerLoc = EntityLoc ->
         write('WARNING: The Howler is in the same room!'), nl,
         add_sanity(-10),
-        check_lose  % 检查并触发游戏结束
+        check_lose  % Check and trigger game over
     ;
         true
     ).
 
 % ----------------------------------------------------------------------------
-% 触发噪音事件 (Trigger Noise Event)
+% Trigger Noise Event
 % ----------------------------------------------------------------------------
 
 trigger_noise_event :-
     at_player(Location),
-    % 设置噪音位置（诱饵目标）
+    % Set the noise location (bait target)
     set_active_noise_at(Location),
-    % 标记下一回合需要更新实体（即使玩家没有移动）
+    % Mark that an entity update is needed next turn (even if the player did not move)
     request_entity_update,
-    % drop 当回合不让实体立刻行动（下一回合才开始按新目标走一步）
+    % On the same turn as drop, prevent the entity from acting immediately
+    % (it will start moving toward the new goal on the next turn).
     suppress_entity_update_once,
-    % 目标改变时清空缓存规划，避免沿用旧路径
+    % Clear cached plan when the target changes to avoid reusing an old path
     clear_cached_entity_plan,
     write('The tape recorder makes a loud noise!'), nl,
     write('The Howler might be attracted to this location...'), nl,

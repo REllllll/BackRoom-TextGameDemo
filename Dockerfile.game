@@ -1,47 +1,47 @@
-# 统一的游戏 Dockerfile
-# 包含 SWI-Prolog 和 PDDL4J
+# Unified game Dockerfile
+# Includes SWI-Prolog and PDDL4J
 
-# 第一阶段：构建 PDDL4J
+# Stage 1: build PDDL4J
 FROM gradle:8-jdk17 AS pddl4j-builder
 
-# 接收代理设置作为构建参数（可选）
+# Accept proxy settings as build args (optional)
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
 
-# 安装必要的工具
+# Install required tools
 RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# 克隆 PDDL4J 仓库（尝试使用代理，失败则直接克隆）
+# Clone the PDDL4J repo (try using a proxy; fall back to direct clone)
 WORKDIR /tmp
 RUN if [ -n "$HTTP_PROXY" ] && [ -n "$HTTPS_PROXY" ]; then \
-        echo "尝试使用代理克隆..." && \
+        echo "Trying to clone via proxy..." && \
         export HTTP_PROXY="$HTTP_PROXY" && \
         export HTTPS_PROXY="$HTTPS_PROXY" && \
         git config --global http.proxy "$HTTP_PROXY" && \
         git config --global https.proxy "$HTTPS_PROXY" && \
         (git clone https://github.com/pellierd/pddl4j.git || \
-         (echo "代理克隆失败，尝试直接克隆..." && \
+         (echo "Proxy clone failed; trying direct clone..." && \
           git config --global --unset http.proxy && \
           git config --global --unset https.proxy && \
           unset HTTP_PROXY HTTPS_PROXY && \
           git clone https://github.com/pellierd/pddl4j.git)); \
     else \
-        echo "直接克隆（未配置代理）..." && \
+        echo "Cloning directly (no proxy configured)..." && \
         git clone https://github.com/pellierd/pddl4j.git; \
     fi
 
-# 构建 PDDL4J
+# Build PDDL4J
 WORKDIR /tmp/pddl4j
-# 使用系统 gradle（来自基础镜像）而不是 wrapper，避免版本冲突
+# Use system gradle (from base image) instead of the wrapper to avoid version conflicts
 RUN gradle jar --no-daemon
 
-# 第二阶段：创建最终镜像（SWI-Prolog + PDDL4J）
+# Stage 2: final image (SWI-Prolog + PDDL4J)
 FROM swipl:latest
 
-# 安装 Java 和开发工具
+# Install Java and dev tools
 RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
     curl \
@@ -52,18 +52,18 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置 Java 环境变量
+# Set Java environment variables
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH=$PATH:$JAVA_HOME/bin
 
-# 从构建阶段复制 PDDL4J jar 文件
+# Copy the PDDL4J jar from the build stage
 COPY --from=pddl4j-builder /tmp/pddl4j/build/libs/pddl4j-*.jar /opt/pddl4j/pddl4j.jar
 
-# 创建 FF 规划器包装脚本（Fast Forward）
-# 支持 Fast-Forward 原始格式: ff -o DOMAIN -f PROBLEM
-# 也支持 PDDL4J 格式: ff DOMAIN PROBLEM
+# Create an FF planner wrapper script (Fast Forward)
+# Supports Fast-Forward style: ff -o DOMAIN -f PROBLEM
+# Also supports PDDL4J style: ff DOMAIN PROBLEM
 RUN echo '#!/bin/bash\n\
-# 解析参数\n\
+# Parse args\n\
 DOMAIN=""\n\
 PROBLEM=""\n\
 OUTPUT=""\n\
@@ -92,19 +92,19 @@ while [[ $# -gt 0 ]]; do\n\
   esac\n\
 done\n\
 \n\
-# 检查参数\n\
+# Validate args\n\
 if [ -z "$DOMAIN" ] || [ -z "$PROBLEM" ]; then\n\
   echo "Usage: ff -o DOMAIN -f PROBLEM" >&2\n\
   echo "   or: ff DOMAIN PROBLEM" >&2\n\
   exit 1\n\
 fi\n\
 \n\
-# 运行 PDDL4J FF 规划器\n\
+# Run the PDDL4J FF planner\n\
 java -cp /opt/pddl4j/pddl4j.jar fr.uga.pddl4j.planners.statespace.FF "$DOMAIN" "$PROBLEM"\n\
 exit $?\n\
 ' > /usr/local/bin/ff && chmod +x /usr/local/bin/ff
 
-# 创建通用的 PDDL4J 调用脚本
+# Create a generic PDDL4J runner script
 RUN echo '#!/bin/bash\n\
 java -cp /opt/pddl4j/pddl4j.jar "$@"\n\
 ' > /usr/local/bin/pddl4j && chmod +x /usr/local/bin/pddl4j

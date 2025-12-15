@@ -1,290 +1,134 @@
 # Liminal Logic: Escape from Level 0
 
-一个基于 Prolog 和 PDDL 的"The Backrooms"（后室）逃脱游戏项目。
+A text-adventure escape game inspired by **The Backrooms**, built with **SWI-Prolog** (knowledge representation + rules) and **PDDL** planning (enemy behavior).
 
-## 项目简介
+## Overview
 
-本项目是一个结合了 **Prolog**（基于逻辑的知识表示）和 **PDDL**（自动规划）的文字冒险游戏。玩家扮演一名不幸"切出"现实世界的角色，掉进了 Level 0（后室的大堂），需要在理智耗尽或被实体抓住之前找到出口。
+You have noclipped out of reality into **Level 0**. Find the **Manila Room** and escape before you lose your sanity or get caught by the entity.
 
-### 核心特性
+## Key features
 
-- **Prolog 知识库**：使用逻辑编程表示游戏世界的静态和动态事实
-- **PDDL 规划**：使用自动规划控制敌对实体（The Howler）的行为
-- **动态交互**：Prolog 和 PDDL 之间的实时交互，实现智能对手
-- **规则推理**：基于逻辑的约束检查（如需要手电筒才能进入黑暗房间）
+- **Prolog knowledge base**: static world facts + dynamic game state as logic predicates
+- **PDDL planning**: automated planning to drive the adversary (The Howler)
+- **Realtime interaction**: Prolog generates a PDDL problem from the current state, calls a planner, then applies the plan
+- **Rule-based constraints**: logical checks (e.g., dark rooms require a flashlight)
 
-## 项目结构
+## Repository layout
 
 ```
-Knowledge Representation/
-├── README.md                          # 项目说明文档（本文件）
-├── prolog/                            # Prolog 知识库和游戏逻辑
-│   ├── knowledge_base.pl             # 静态知识库（房间、连接、物品定义）
-│   ├── game_state.pl                 # 动态状态管理（玩家位置、实体位置、理智值等）
-│   ├── game_logic.pl                 # 游戏逻辑（移动、使用物品、交互）
-│   ├── win_conditions.pl             # 胜利和失败条件
-│   ├── pddl_interface.pl             # Prolog 与 PDDL 的接口模块
-│   └── main.pl                       # 主程序入口
-├── pddl/                              # PDDL 规划文件
+BackRoom-TextGameDemo/
+├── README.md
+├── prolog/
+│   ├── knowledge_base.pl          # Static world facts (rooms, connections, items)
+│   ├── game_state.pl              # Dynamic state (player/entity position, sanity, inventory)
+│   ├── game_logic.pl              # Commands + rules (move/take/drop/use/look)
+│   ├── win_conditions.pl          # Win/lose checks
+│   ├── pddl_interface.pl          # Prolog <-> PDDL integration
+│   ├── http_server.pl             # REST API server for the playground UI
+│   └── main.pl                    # CLI game entry point
+├── pddl/
 │   ├── domains/
-│   │   └── adversary_domain.pddl     # 实体（The Howler）的域定义
+│   │   └── adversary_domain.pddl  # Adversary domain definition
 │   └── problems/
-│       ├── initial_problem.pddl      # 初始问题文件模板
-│       └── .gitkeep                  # 保持目录（动态生成的问题文件）
-├── scripts/                           # 辅助脚本
-│   ├── generate_problem.pl           # 从 Prolog 状态生成 PDDL problem
-│   └── run_game.sh                   # 游戏启动脚本
-└── docs/                              # 文档目录
-    └── design.md                     # 设计文档
+│       ├── initial_problem.pddl   # Template (runtime uses dynamically generated problems)
+│       └── .gitkeep
+├── scripts/
+│   ├── dev.sh                     # Dev container helper
+│   ├── run_game.sh                # Game launcher (host or container)
+│   └── test_pddl.sh               # PDDL environment check
+├── docs/
+│   ├── design.md                  # Design notes
+│   ├── pddl_integration.md        # Integration details
+│   └── pddl_testing.md            # Testing guide
+└── playground/
+    ├── index.html
+    ├── app.js
+    ├── style.css
+    └── api/proxy/[...path].js     # Vercel Serverless proxy
 ```
 
-## 文件说明
+## Requirements
 
-### Prolog 文件
+- **Docker + Docker Compose** (recommended)
+- Or local installation:
+  - **SWI-Prolog** (7+ recommended)
+  - Optional: a **PDDL planner** (the project supports Fast-Forward style `ff`)
 
-- **knowledge_base.pl**: 包含房间定义、房间连接、物品属性等静态事实
-- **game_state.pl**: 管理动态事实（`at_player/1`, `at_entity/1`, `sanity/1`, `holding/1` 等）
-- **game_logic.pl**: 实现游戏命令（`move`, `take`, `drop`, `use` 等）和规则推理
-- **win_conditions.pl**: 定义胜利条件（到达 Manila Room）和失败条件（理智耗尽、被抓）
-- **pddl_interface.pl**: Prolog 与 PDDL 的接口模块，负责生成 PDDL problem、调用规划器、解析结果
-- **main.pl**: 主程序，整合所有模块，处理游戏循环和 PDDL 交互
+## Run (recommended): Docker dev container
 
-### PDDL 文件
-
-- **adversary_domain.pddl**: 定义实体动作（`move`, `listen`, `chase`）和谓词
-- **initial_problem.pddl**: 初始问题模板，包含初始状态和目标
-
-### 脚本文件
-
-- **generate_problem.pl**: Prolog 脚本，读取当前游戏状态并生成 PDDL problem 文件
-- **run_game.sh**: Shell 脚本，用于启动游戏（调用 Prolog 和 PDDL 规划器）
-
-## 安装要求
-
-### 必需软件
-
-1. **SWI-Prolog** (>= 7.0)
-   - 下载地址：https://www.swi-prolog.org/
-   - macOS: `brew install swi-prolog`
-   - Linux: `sudo apt-get install swi-prolog`
-   - Windows: 从官网下载安装包
-
-2. **PDDL 规划器**（可选，用于实体 AI）
-   - Fast-Forward (FF): http://fai.cs.uni-saarland.de/hoffmann/ff.html
-   - 或其他兼容的 PDDL 规划器
-
-## 使用方法
-
-### 方式一：使用 Docker 开发容器（推荐）
-
-Docker 容器已包含所有依赖（SWI-Prolog 和 PDDL4J），无需本地安装。
-
-#### 快速开始
-
-1. **启动开发容器**
-   ```bash
-   # 使用便捷脚本
-   ./scripts/dev.sh start
-   
-   # 或使用 docker-compose
-   docker-compose -f docker-compose.dev.yml up -d --build
-   ```
-
-2. **进入容器进行开发**
-   ```bash
-   # 使用便捷脚本
-   ./scripts/dev.sh shell
-   
-   # 或使用 docker-compose
-   docker-compose -f docker-compose.dev.yml exec game-dev bash
-   ```
-
-3. **在容器内运行游戏**
-   ```bash
-   swipl -s prolog/main.pl -g start
-   ```
-
-#### 开发工作流
+Start the dev container:
 
 ```bash
-# 启动容器
 ./scripts/dev.sh start
-
-# 进入容器
-./scripts/dev.sh shell
-
-# 在容器内编辑和测试
-vim prolog/game_logic.pl          # 编辑文件
-swipl -s prolog/main.pl -g start  # 测试游戏
-ff -o pddl/domains/... -f ...     # 测试 PDDL 规划器
-
-# 查看日志
-./scripts/dev.sh logs
-
-# 停止容器
-./scripts/dev.sh stop
 ```
 
-**注意**：项目目录已挂载到容器，在主机上的修改会立即同步到容器内。
-
-更多 Docker 使用说明请参考 [DOCKER.md](DOCKER.md)。
-
-### 方式二：本地安装
-
-1. 确保已安装 SWI-Prolog
-
-2. 使用启动脚本运行游戏：
-   ```bash
-   ./scripts/run_game.sh
-   ```
-
-3. 或者直接在 Prolog 中加载：
-   ```bash
-   swipl -s prolog/main.pl -g start
-   ```
-
-### 游戏命令
-
-- `move(direction)` - 向指定方向移动（north, south, east, west）
-- `take(item)` - 拾取物品
-- `drop(item)` - 丢弃物品
-- `use(item)` - 使用物品
-- `inventory` / `inv` - 查看当前携带的物品（最多 2 个）
-- `look` - 查看当前位置和周围环境
-- `quit` - 退出游戏
-
-### 示例
-
-```prolog
-?- start.
-% 游戏开始...
-
-> look.
-You are in start_point.
-Exits: east -> yellow_hallway
-Items here: none
-Sanity: 100
-
-> move(east).
-You move to yellow_hallway.
-
-> take(almond_water).
-You pick up the almond_water.
-
-> use(almond_water).
-You drink the almond water. Your sanity increases.
-```
-
-## 游戏机制
-
-### 地图结构
-
-游戏包含以下房间：
-- **start_point**: 起始点
-- **yellow_hallway**: 黄色走廊
-- **dark_corridor**: 黑暗走廊（需要手电筒）
-- **electrical_room**: 电气室
-- **the_hub**: 中心枢纽（危险区）
-- **manila_room**: 马尼拉房间（出口）
-- **supply_closet**: 储藏室
-- **dead_end**: 死胡同
-
-### 物品系统
-
-- **Almond Water（杏仁水）**: 恢复理智值 +20
-- **Flashlight（手电筒）**: 允许进入黑暗房间
-- **Tape Recorder（录音机）**: 可以作为诱饵，吸引实体
-- **Key（钥匙）**: 通关所需（可选）
-
-### 胜利和失败条件
-
-**胜利条件**：
-- 到达 `manila_room`
-- （可选）持有 `key`
-
-**失败条件**：
-- 理智值降至 0 或以下
-- 与实体（The Howler）在同一房间
-
-### 实体 AI（PDDL）
-
-实体"The Howler"使用 PDDL 规划器控制：
-- **move**: 在相邻房间移动
-- **listen**: 监听玩家位置（基于噪音）
-- **chase**: 追逐已知位置的玩家
-- **roam**: 随机巡逻
-
-## 开发说明
-
-### 扩展游戏
-
-1. **添加新房间**：在 `knowledge_base.pl` 中添加 `room/1` 和 `connect/3` 事实
-2. **添加新物品**：在 `knowledge_base.pl` 中添加 `item/1` 和 `item_property/2` 事实
-3. **修改实体行为**：编辑 `pddl/domains/adversary_domain.pddl`
-4. **调整游戏规则**：修改 `game_logic.pl` 中的规则
-
-### PDDL 集成
-
-游戏使用 `prolog/pddl_interface.pl` 模块实现 Prolog 和 PDDL 之间的完整集成：
-
-1. **自动生成 PDDL Problem**：从当前游戏状态自动生成 PDDL problem 文件
-2. **调用规划器**：自动调用配置的 PDDL 规划器（如 Fast-Forward）
-3. **解析规划结果**：从规划器输出中提取动作序列
-4. **更新实体位置**：根据规划结果更新实体位置
-
-详细说明请参考 `docs/pddl_integration.md`。
-
-**注意**：需要安装 PDDL 规划器（如 Fast-Forward）才能使用实体 AI 功能。如果未安装规划器，实体将保持原位置。
-
-### 检查 PDDL 环境
-
-要检查 PDDL 环境是否正常运行并接入到 Prolog 中，可以使用测试脚本：
+Enter the container:
 
 ```bash
-# 快速检查（推荐）
-./scripts/test_pddl.sh
-
-# 或使用 Prolog 测试脚本
-swipl -s scripts/test_pddl_integration.pl -g test_pddl_integration -t halt
+./scripts/dev.sh shell
 ```
 
-测试脚本会检查：
-- PDDL 规划器是否安装
-- PDDL 文件是否存在
-- 能否生成 problem 文件
-- 能否调用规划器并解析结果
-- 完整的集成流程
+Run the CLI game inside the container:
 
-详细说明请参考 `docs/pddl_testing.md`。
+```bash
+swipl -s prolog/main.pl -g start
+```
 
-## 技术亮点
+## Run (host): launcher script
 
-1. **逻辑推理**：使用 Prolog 的规则系统实现复杂的游戏逻辑
-2. **自动规划**：使用 PDDL 实现智能对手
-3. **动态交互**：Prolog 和 PDDL 之间的实时数据交换
-4. **约束检查**：基于逻辑的前置条件验证
+On the host, the launcher will prefer running via the dev container if available:
 
-## 报告写作建议
+```bash
+./scripts/run_game.sh
+```
 
-在撰写项目报告时，可以强调：
+## Game commands
 
-- **知识表示**：如何使用 Prolog 表示游戏世界的静态和动态知识
-- **规则推理**：如何通过逻辑规则实现游戏机制（如黑暗房间需要手电筒）
-- **自动规划**：如何使用 PDDL 实现实体的智能行为
-- **系统集成**：如何将 Prolog 和 PDDL 两个系统整合在一起
-- **动态重规划**：如何实现基于玩家行为的动态目标调整（如录音机诱饵）
+- `move(direction)` - move `north|south|east|west`
+- `take(item)` - pick up an item
+- `drop(item)` - drop an item you are holding
+- `use(item)` - use an item
+- `inventory` / `inv` - show what you are carrying (max 2 items)
+- `look` - describe current room
+- `quit` - exit the game
 
-## 许可证
+## Mechanics (high level)
 
-本项目为课程作业项目。
+- **Sanity**: decreases as you move; can be restored by items (e.g. almond water).
+- **Dark rooms**: require a flashlight.
+- **Win**: reach `manila_room` (optionally requiring `key`, depending on rule configuration).
+- **Lose**: sanity reaches 0, or the entity reaches your room.
 
-## 参考资料
+## PDDL integration
 
-- The Backrooms Wiki: https://backrooms.fandom.com/
-- SWI-Prolog 文档: https://www.swi-prolog.org/pldoc/
-- PDDL 规范: https://planning.wiki/
+The entity behavior is driven by PDDL planning:
 
-## 作者
+1. Prolog serializes the current game state into a PDDL problem file
+2. A planner is executed
+3. The plan is parsed back into actions
+4. Prolog applies the actions to update the entity
 
-课程作业项目 - Knowledge Representation
+See `docs/pddl_integration.md` for details.
+
+## Test PDDL setup
+
+Use the helper script:
+
+```bash
+./scripts/test_pddl.sh
+```
+
+It checks for SWI-Prolog, common planners, required files, and runs a small integration test. See `docs/pddl_testing.md`.
+
+## License
+
+Course project / demo.
+
+## References
+
+- The Backrooms Wiki: `https://backrooms.fandom.com/`
+- SWI-Prolog documentation: `https://www.swi-prolog.org/pldoc/`
+- Planning Wiki: `https://planning.wiki/`
+
+
 

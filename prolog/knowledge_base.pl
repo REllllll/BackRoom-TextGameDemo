@@ -1,8 +1,8 @@
 % ============================================================================
 % knowledge_base.pl
 % ============================================================================
-% 静态知识库：定义游戏世界的静态事实
-% 包括：房间定义、房间连接、物品属性等
+% Static knowledge base: defines static facts about the game world.
+% Includes: room definitions, room connections, item properties, etc.
 % ============================================================================
 
 :- module(knowledge_base, [
@@ -16,7 +16,7 @@
 ]).
 
 % ----------------------------------------------------------------------------
-% 房间定义 (Room Definitions)
+% Room definitions
 % ----------------------------------------------------------------------------
 
 room(start_point).
@@ -29,60 +29,60 @@ room(supply_closet).
 room(dead_end).
 
 % ----------------------------------------------------------------------------
-% 房间连接 (Room Connections)
+% Room connections
 % ----------------------------------------------------------------------------
 
-% 从起点到黄色走廊
+% From start_point to yellow_hallway
 connect(start_point, east, yellow_hallway).
 
-% 黄色走廊的连接
+% Connections from yellow_hallway
 connect(yellow_hallway, west, start_point).
 connect(yellow_hallway, north, dark_corridor).
 connect(yellow_hallway, east, the_hub).
 connect(yellow_hallway, south, supply_closet).
 
-% 黑暗走廊的连接
+% Connections from dark_corridor
 connect(dark_corridor, south, yellow_hallway).
 connect(dark_corridor, east, dead_end).
 
-% 死胡同
+% Dead end
 connect(dead_end, west, dark_corridor).
 
-% 中心枢纽
+% Central hub
 connect(the_hub, west, yellow_hallway).
 connect(the_hub, east, manila_room).
 connect(the_hub, south, electrical_room).
 
-% 电气室
+% Electrical room
 connect(electrical_room, north, the_hub).
 connect(electrical_room, west, supply_closet).
 
-% 马尼拉房间（出口）
+% Manila room (exit)
 connect(manila_room, west, the_hub).
 
-% 储藏室
+% Supply closet
 connect(supply_closet, north, yellow_hallway).
 connect(supply_closet, east, electrical_room).
 
 % ----------------------------------------------------------------------------
-% 房间属性 (Room Properties)
+% Room properties
 % ----------------------------------------------------------------------------
 
-% 黑暗房间（需要手电筒）
+% Dark rooms (require flashlight)
 is_dark(dark_corridor).
 is_dark(dead_end).
 
-% 出口房间
+% Exit room
 is_exit(manila_room).
 
-% 需要钥匙的房间
+% Rooms that require a key
 requires_key(manila_room).
 
-% 危险区域（实体经常巡逻）
+% Dangerous area (the entity patrols frequently)
 % is_dangerous(the_hub).
 
 % ----------------------------------------------------------------------------
-% 物品定义 (Item Definitions)
+% Item definitions
 % ----------------------------------------------------------------------------
 
 item(almond_water).
@@ -91,26 +91,26 @@ item(tape_recorder).
 item(key).
 
 % ----------------------------------------------------------------------------
-% 物品属性 (Item Properties)
+% Item properties
 % ----------------------------------------------------------------------------
 
-% 杏仁水：恢复理智值
+% Almond water: restores sanity
 item_property(almond_water, restores_sanity(20)).
 
-% 手电筒：允许进入黑暗房间
+% Flashlight: allows entering dark rooms
 item_property(flashlight, enables_dark_rooms).
 
-% 录音机：可以作为诱饵
+% Tape recorder: can be used as bait
 item_property(tape_recorder, creates_noise).
 
-% 钥匙：通关所需
+% Key: required to win
 item_property(key, required_for_exit).
 
 % ----------------------------------------------------------------------------
-% 物品初始位置 (Initial Item Locations)
+% Initial item locations
 % ----------------------------------------------------------------------------
 
-% TODO: 定义物品的初始位置
+% TODO: define initial item locations
 % initial_location(almond_water, supply_closet).
 % initial_location(flashlight, electrical_room).
 % initial_location(tape_recorder, yellow_hallway).

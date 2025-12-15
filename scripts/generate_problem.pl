@@ -1,39 +1,40 @@
 % ============================================================================
 % generate_problem.pl
 % ============================================================================
-% 从 Prolog 游戏状态生成 PDDL problem 文件
-% 读取当前游戏状态（玩家位置、实体位置等），生成对应的 PDDL problem
+% Generate a PDDL problem file from the current Prolog game state.
+% Reads the current game state (player location, entity location, etc.) and
+% writes the corresponding PDDL problem.
 % ============================================================================
 
 :- use_module('../prolog/game_state').
 :- use_module('../prolog/knowledge_base').
 
 % ----------------------------------------------------------------------------
-% 主函数：生成 PDDL problem 文件
+% Main entry: generate a PDDL problem file
 % ----------------------------------------------------------------------------
 % generate_pddl_problem(+OutputFile)
-% 从当前游戏状态生成 PDDL problem 并写入指定文件
+% Generate a PDDL problem from the current game state and write it to OutputFile
 % ----------------------------------------------------------------------------
 
 generate_pddl_problem(OutputFile) :-
     open(OutputFile, write, Stream),
     
-    % 写入文件头
+    % Write header
     write(Stream, '(define (problem backrooms_current)'), nl(Stream),
     write(Stream, '  (:domain adversary)'), nl(Stream),
     nl(Stream),
     
-    % 写入对象定义
+    % Write object declarations
     write_objects(Stream),
     nl(Stream),
     
-    % 写入初始状态
+    % Write initial state
     write(Stream, '  (:init'), nl(Stream),
     write_initial_state(Stream),
     write(Stream, '  )'), nl(Stream),
     nl(Stream),
     
-    % 写入目标状态
+    % Write goal state
     write_goal(Stream),
     nl(Stream),
     
@@ -42,7 +43,7 @@ generate_pddl_problem(OutputFile) :-
     write('PDDL problem file generated: '), write(OutputFile), nl.
 
 % ----------------------------------------------------------------------------
-% 写入对象定义
+% Write object declarations
 % ----------------------------------------------------------------------------
 
 write_objects(Stream) :-
@@ -54,28 +55,28 @@ write_objects(Stream) :-
     write(Stream, '  )'), nl(Stream).
 
 % ----------------------------------------------------------------------------
-% 写入初始状态
+% Write initial state
 % ----------------------------------------------------------------------------
 
 write_initial_state(Stream) :-
-    % 写入实体位置
+    % Entity location
     (at_entity(EntityLoc) ->
         write(Stream, '    (at howler '), write(Stream, EntityLoc), write(Stream, ')'), nl(Stream)
     ; true),
     
-    % 写入玩家位置
+    % Player location
     (at_player(PlayerLoc) ->
         write(Stream, '    (at_player player1 '), write(Stream, PlayerLoc), write(Stream, ')'), nl(Stream)
     ; true),
     
-    % 写入房间连接（双向）
+    % Room connections (bidirectional)
     write_connections(Stream),
     
-    % 写入噪音位置（如果有）
+    % Noise location (if present)
     write_noise_locations(Stream).
 
 % ----------------------------------------------------------------------------
-% 写入房间连接
+% Write room connections
 % ----------------------------------------------------------------------------
 
 write_connections(Stream) :-
@@ -91,7 +92,7 @@ write_connection_pairs(Stream, [From-To|Rest]) :-
     write_connection_pairs(Stream, Rest).
 
 % ----------------------------------------------------------------------------
-% 写入噪音位置（如果丢弃了录音机）
+% Write noise location (if the tape recorder has been dropped)
 % ----------------------------------------------------------------------------
 
 write_noise_locations(Stream) :-
@@ -100,7 +101,7 @@ write_noise_locations(Stream) :-
     ; true).
 
 % ----------------------------------------------------------------------------
-% 写入目标状态
+% Write goal state
 % ----------------------------------------------------------------------------
 
 write_goal(Stream) :-
@@ -110,7 +111,7 @@ write_goal(Stream) :-
     write(Stream, '  ))'), nl(Stream).
 
 % ----------------------------------------------------------------------------
-% 使用示例
+% Usage example
 % ----------------------------------------------------------------------------
 % ?- generate_pddl_problem('../pddl/problems/current_problem.pddl').
 

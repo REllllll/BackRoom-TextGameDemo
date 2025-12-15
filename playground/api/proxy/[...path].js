@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       hint: errorHint,
       backendUrl: backendUrl,
       targetUrl: fullUrl,
-      // 在开发环境或特定条件下显示更多调试信息
+      // Show extra debug details in development (or under specific conditions)
       details: process.env.VERCEL_ENV === 'development' ? {
         originalError: error.message,
         errorName: error.name,

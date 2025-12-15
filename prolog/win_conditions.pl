@@ -1,7 +1,7 @@
 % ============================================================================
 % win_conditions.pl
 % ============================================================================
-% 胜利和失败条件：定义游戏结束条件
+% Win/lose conditions: defines game end conditions.
 % ============================================================================
 
 :- module(win_conditions, [
@@ -14,13 +14,13 @@
 :- use_module(knowledge_base).
 
 % ----------------------------------------------------------------------------
-% 胜利条件检查 (Win Condition Check)
+% Win Condition Check
 % ----------------------------------------------------------------------------
 
 check_win :-
     at_player(manila_room),
     is_exit(manila_room),
-    holding(key),  % 必须持有钥匙才能获胜
+    holding(key),  % Must be holding the key to win
     write('========================================'), nl,
     write('YOU ESCAPED!'), nl,
     write('You noclipped out of Level 0!'), nl,
@@ -29,7 +29,7 @@ check_win :-
     !.
 
 % ----------------------------------------------------------------------------
-% 失败条件检查 (Lose Condition Check)
+% Lose Condition Check
 % ----------------------------------------------------------------------------
 
 check_lose :-
@@ -56,12 +56,12 @@ check_lose :-
     !.
 
 % ----------------------------------------------------------------------------
-% 游戏结束处理 (Game Over Handler)
+% Game Over Handler
 % ----------------------------------------------------------------------------
 
 game_over(Result) :-
-    % 设置游戏结束状态
+    % Set game over status
     set_game_over_status(Result),
-    % TODO: 保存游戏结果，清理资源等
+    % TODO: persist results, clean up resources, etc.
     true.
 

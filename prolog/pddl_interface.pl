@@ -1,11 +1,11 @@
 % ============================================================================
 % pddl_interface.pl
 % ============================================================================
-% Prolog 和 PDDL 之间的接口模块
-% 功能：
-%   1. 从 Prolog 游戏状态生成 PDDL problem 文件
-%   2. 调用 PDDL 规划器（如 Fast-Forward）
-%   3. 解析规划结果，更新实体位置
+% Interface module between Prolog and PDDL.
+% Responsibilities:
+%   1. Generate a PDDL problem file from the current Prolog game state
+%   2. Invoke a PDDL planner (e.g. Fast-Forward)
+%   3. Parse the plan output and update the entity location
 % ============================================================================
 
 :- module(pddl_interface, [
@@ -29,115 +29,115 @@
 :- use_module(win_conditions).
 
 % ----------------------------------------------------------------------------
-% 配置路径
+% Path configuration
 % ----------------------------------------------------------------------------
 
-% PDDL 文件路径（相对于项目根目录）
-% 注意：这些路径在运行时会被解析为绝对路径
+% PDDL file paths (relative to the project root).
+% Note: these paths are resolved to absolute paths at runtime.
 pddl_domain_path('pddl/domains/adversary_domain.pddl').
 pddl_problem_path('pddl/problems/current_problem.pddl').
 pddl_plan_path('pddl/problems/plan.txt').
 
-% PDDL 规划器命令（可以根据实际安装的规划器调整）
-% 常见选项：
+% PDDL planner command (adjust based on what is installed).
+% Common options:
 % - Fast-Forward: 'ff -o DOMAIN -f PROBLEM'
 % - Fast-Downward: 'fast-downward.py DOMAIN PROBLEM --search "astar(lmcut())"'
-% - 其他规划器...
-% 如果规划器不在 PATH 中，请使用完整路径，例如：
+% - Other planners...
+% If the planner is not on PATH, use an absolute path, e.g.:
 % pddl_planner_command('/usr/local/bin/ff').
 pddl_planner_command('ff').
 
-% 获取项目根目录的绝对路径
-% 基于 pddl_interface.pl 的位置计算，确保无论从哪里调用都能正确获取
+% Get the absolute project root path.
+% Derived from the location of pddl_interface.pl so it works regardless of cwd.
 project_root(Root) :-
-    % 使用 source_file 获取模块文件路径（最可靠的方法）
+    % Use source_file to get the module file path (most reliable)
     (source_file(pddl_interface:project_root(_), ModuleFile) ->
         absolute_file_name(ModuleFile, AbsFile),
         file_directory_name(AbsFile, PrologDir),
         file_directory_name(PrologDir, Root)
     ;
-        % 备用方法：基于当前文件上下文
+        % Fallback: derive from current file context
         prolog_load_context(file, CurrentFile),
         absolute_file_name(CurrentFile, AbsFile),
         file_directory_name(AbsFile, PrologDir),
         file_directory_name(PrologDir, Root)
     ).
 
-% 获取 PDDL 文件的绝对路径
+% Get absolute path for a PDDL file
 get_pddl_path(RelativePath, AbsolutePath) :-
     project_root(Root),
     atomic_list_concat([Root, '/', RelativePath], AbsolutePath).
 
 % ----------------------------------------------------------------------------
-% 主函数：从 PDDL 更新实体位置
+% Main entry: update entity location from PDDL
 % ----------------------------------------------------------------------------
 % update_entity_from_pddl
-% 生成 PDDL problem，调用规划器，解析结果并更新实体位置
+% Generate a PDDL problem, call the planner, parse the result, and update the entity location
 % ----------------------------------------------------------------------------
 
-% 本回合跳过一次实体更新（例如 drop 录音机：下回合才开始行动）
+% Skip one entity update this turn (e.g. dropping the tape recorder: act starting next turn)
 update_entity_from_pddl :-
     consume_suppress_entity_update_once,
     !.
 
 update_entity_from_pddl :-
-    % 如果实体已经到达噪音位置，噪音诱饵失效（避免一直被锁定在该目标）
+    % If the entity has reached the noise location, clear the bait to avoid being locked onto it
     (active_noise_at(NoiseLoc), at_entity(NoiseLoc) ->
         clear_active_noise
     ;
         true
     ),
-    % 检查Howler是否已经开始追逐
+    % Check whether the Howler has started chasing
     (howler_chasing ->
-        % Howler已经开始追逐，使用优化的规划逻辑
+        % Howler is chasing: use the optimized planning logic
         at_entity(EntityLoc),
         at_player(PlayerLoc),
-        % 检查是否有缓存的规划路径
+        % Check whether there is a cached plan
         (cached_entity_plan(CachedPlan) ->
-            % 有缓存，检查是否需要重新规划
+            % Cached plan exists; decide whether replanning is needed
             (need_replan(CachedPlan, EntityLoc, PlayerLoc) ->
-                % 需要重新规划
+                % Need to replan
                 clear_cached_entity_plan,
                 generate_and_execute_plan
             ;
-                % 使用缓存的规划，执行下一步
+                % Use cached plan and execute the next step
                 execute_next_step_from_plan(CachedPlan)
             )
         ;
-            % 没有缓存，生成新规划
+            % No cache; generate a new plan
             generate_and_execute_plan
         )
     ;
-        % Howler还没有开始追逐：
-        % - 默认只在玩家移动时更新实体（避免 look 等命令让实体白走）
-        % - 但某些非移动命令（如丢弃录音机）也需要触发实体更新
+        % Howler is not yet chasing:
+        % - By default, only update the entity when the player moves (so look doesn't move it)
+        % - Some non-move commands (e.g. dropping the tape recorder) should still trigger updates
         at_player(PlayerLoc),
         player_previous_location(PlayerPrevLoc),
         ( (entity_update_requested ; PlayerLoc \= PlayerPrevLoc) ->
-            % 本回合已经明确要求更新实体，清除请求标记
+            % Entity update explicitly requested this turn; clear the request flag
             clear_entity_update_request,
-            % 玩家位置改变了，继续更新实体
-            % 1. 生成当前状态的 PDDL problem 文件
+            % Player location changed; proceed with entity update
+            % 1. Generate the PDDL problem for the current state
             pddl_problem_path(ProblemPathRel),
             get_pddl_path(ProblemPathRel, ProblemPath),
             generate_pddl_problem(ProblemPath),
             
-            % 2. 调用 PDDL 规划器
+            % 2. Call the PDDL planner
             pddl_domain_path(DomainPathRel),
             get_pddl_path(DomainPathRel, DomainPath),
             call_pddl_planner(DomainPath, ProblemPath),
             
-            % 3. 解析规划结果并更新实体位置
+            % 3. Parse the plan output and update entity location
             pddl_plan_path(PlanPathRel),
             get_pddl_path(PlanPathRel, PlanPath),
             (exists_file(PlanPath) ->
                 parse_plan_result(PlanPath, Actions),
                 (Actions = [] ->
-                    % PDDL 规划器没有找到动作
+                    % Planner found no actions
                     write('PDDL planner found no actions. Entity stays in place.'), nl
                 ;
                     write('Parsed actions: '), write(Actions), nl,
-                    % 一回合只执行一个动作：取第一个“受支持”的动作（move/stay/chase）
+                    % Execute only one action per turn: take the first supported action (move/stay/chase)
                     filter_supported_actions(Actions, SupportedActions),
                     (SupportedActions = [FirstAction|_] ->
                         apply_entity_actions([FirstAction])
@@ -147,44 +147,44 @@ update_entity_from_pddl :-
                     write('Entity moved based on PDDL plan.'), nl
                 )
             ;
-                % 如果规划失败，实体保持原位置
+                % If planning fails, keep the entity in its current location
                 write('PDDL planner did not generate a plan. Entity stays in place.'), nl
             )
         ;
-            % 玩家位置没有改变（例如执行了 look 命令），且没有强制更新请求，不更新实体
+            % Player location did not change (e.g. look), and no forced update request: do not update entity
             true
         )
     ),
     !.
 
 % ----------------------------------------------------------------------------
-% 优化的规划逻辑
+% Optimized planning logic
 % ----------------------------------------------------------------------------
 
-% 生成并执行规划（只执行第一步）
+% Generate and execute a plan (execute only the first step)
 generate_and_execute_plan :-
-    % 1. 生成当前状态的 PDDL problem 文件
+    % 1. Generate the PDDL problem for the current state
     pddl_problem_path(ProblemPathRel),
     get_pddl_path(ProblemPathRel, ProblemPath),
     generate_pddl_problem(ProblemPath),
     
-    % 2. 调用 PDDL 规划器
+    % 2. Call the PDDL planner
     pddl_domain_path(DomainPathRel),
     get_pddl_path(DomainPathRel, DomainPath),
     call_pddl_planner(DomainPath, ProblemPath),
     
-    % 3. 解析规划结果
+    % 3. Parse the plan output
     pddl_plan_path(PlanPathRel),
     get_pddl_path(PlanPathRel, PlanPath),
     (exists_file(PlanPath) ->
         parse_plan_result(PlanPath, Actions),
         filter_supported_actions(Actions, SupportedActions),
         (SupportedActions = [] ->
-            % PDDL 规划器没有找到动作，使用简单逻辑
+            % Planner found no actions; fall back to simple logic
             update_entity_towards_player,
             clear_cached_entity_plan
         ;
-            % 一回合只执行第一步；其余动作（如有）缓存到下一回合
+            % Execute only the first step; cache remaining actions (if any) for the next turn
             SupportedActions = [FirstAction|RestActions],
             (RestActions = [] ->
                 clear_cached_entity_plan
@@ -194,82 +194,84 @@ generate_and_execute_plan :-
             apply_entity_actions([FirstAction])
         )
     ;
-        % 如果规划失败，使用简单逻辑
+        % If planning fails, fall back to simple logic
         update_entity_towards_player,
         clear_cached_entity_plan
     ),
     !.
 
-% 从缓存的规划中执行下一步
+% Execute the next step from the cached plan
 execute_next_step_from_plan([]) :-
-    % 规划已执行完毕，清除缓存
+    % Plan finished; clear cache
     clear_cached_entity_plan,
-    % 使用简单逻辑继续
+    % Continue with simple logic
     update_entity_towards_player.
 execute_next_step_from_plan([NextAction|RestActions]) :-
-    % 执行下一步
+    % Execute next step
     apply_entity_actions([NextAction]),
-    % 更新缓存（去掉已执行的步骤）
+    % Update cache (remove the executed step)
     set_cached_entity_plan(RestActions).
 
-% 检查是否需要重新规划
+% Check whether replanning is needed
 need_replan(_CachedPlan, EntityLoc, PlayerLoc) :-
-    % 如果实体和玩家已经在同一房间，不需要重新规划
+    % If the entity and player are already in the same room, no replanning is needed
     EntityLoc = PlayerLoc,
     !,
     fail.
 need_replan(CachedPlan, _EntityLoc, _PlayerLoc) :-
-    % 如果缓存的规划为空，需要重新规划
+    % If the cached plan is empty, replan
     CachedPlan = [],
     !.
 need_replan([FirstAction|_], EntityLoc, _PlayerLoc) :-
-    % 检查第一步动作是否仍然有效
+    % Check whether the first planned action is still valid
     (FirstAction = action(move, [_, From, _To]) ->
         (string(From) ->
             atom_string(FromAtom, From)
         ;
             FromAtom = From
         ),
-        % 如果实体不在规划的起始位置，需要重新规划
+        % If the entity is not at the planned starting location, replan
         EntityLoc \= FromAtom
     ;
-        % 其他动作类型，总是重新规划
+        % Other action types: always replan
         true
     ),
     !.
 need_replan(_, _, _) :-
-    % 默认不需要重新规划
+    % By default, no replanning is required
     fail.
 
 % ----------------------------------------------------------------------------
-% 处理移动失败的情况
+% Handling failed move attempts
 % update_entity_on_failed_move/1
-% 当玩家尝试移动但失败时（例如没有钥匙），Howler也应该行动
-% 参数：Direction - 玩家尝试移动的方向
+% When the player attempts to move but fails (e.g. missing a key), the Howler
+% should still take an action.
+% Args:
+%   Direction - the direction the player attempted to move
 % ----------------------------------------------------------------------------
 
 update_entity_on_failed_move(Direction) :-
-    % 获取玩家当前位置和尝试移动的目标房间
+    % Get the player's current location and the target room of the attempted move
     at_player(PlayerLoc),
     connect(PlayerLoc, Direction, TargetRoom),
     at_entity(EntityLoc),
-    % 1. 生成包含玩家开门动作的 PDDL problem 文件
+    % 1. Generate a PDDL problem including the player's door-attempt action
     pddl_problem_path(ProblemPathRel),
     get_pddl_path(ProblemPathRel, ProblemPath),
     generate_pddl_problem_with_door_attempt(ProblemPath, PlayerLoc, TargetRoom),
     
-    % 2. 调用 PDDL 规划器
+    % 2. Call the PDDL planner
     pddl_domain_path(DomainPathRel),
     get_pddl_path(DomainPathRel, DomainPath),
     call_pddl_planner(DomainPath, ProblemPath),
     
-    % 3. 解析规划结果并更新实体位置
+    % 3. Parse the plan and update entity location
     pddl_plan_path(PlanPathRel),
     get_pddl_path(PlanPathRel, PlanPath),
     (exists_file(PlanPath) ->
         parse_plan_result(PlanPath, Actions),
         (Actions = [] ->
-            % PDDL 规划器没有找到动作，使用简单逻辑
+            % Planner found no actions; fall back to simple logic
             (EntityLoc = PlayerLoc ->
                 check_entity_player_same_room
             ;
@@ -283,7 +285,7 @@ update_entity_on_failed_move(Direction) :-
             )
         ;
             write('Parsed actions: '), write(Actions), nl,
-            % 一回合只执行一个动作：取第一个“受支持”的动作（move/stay/chase）
+            % Execute only one action per turn: take the first supported action (move/stay/chase)
             filter_supported_actions(Actions, SupportedActions),
             (SupportedActions = [FirstAction|_] ->
                 apply_entity_actions([FirstAction])
@@ -293,7 +295,7 @@ update_entity_on_failed_move(Direction) :-
             write('Entity moved based on PDDL plan (player attempted door).'), nl
         )
     ;
-        % 如果规划失败，使用简单逻辑
+        % If planning fails, fall back to simple logic
         (EntityLoc = PlayerLoc ->
             check_entity_player_same_room
         ;
@@ -309,48 +311,49 @@ update_entity_on_failed_move(Direction) :-
     !.
 
 % ----------------------------------------------------------------------------
-% 生成 PDDL Problem 文件
+% Generate PDDL Problem File
 % ----------------------------------------------------------------------------
 % generate_pddl_problem(+OutputFile)
-% 从当前游戏状态生成 PDDL problem 并写入指定文件
+% Generate a PDDL problem from the current game state and write it to OutputFile
 % ----------------------------------------------------------------------------
 
 generate_pddl_problem(OutputFile) :-
     generate_pddl_problem_with_door_attempt(OutputFile, false, false).
 
 % ----------------------------------------------------------------------------
-% 生成包含玩家开门动作的 PDDL Problem 文件
+% Generate a PDDL Problem file including the player's door-attempt action
 % generate_pddl_problem_with_door_attempt(+OutputFile, +FromRoom, +ToRoom)
-% 从当前游戏状态生成 PDDL problem，并包含玩家尝试开门的信息
-% 如果FromRoom和ToRoom都是false或未绑定，则不包含开门动作
+% Generates a PDDL problem from the current game state and includes information
+% about the player's attempted door action.
+% If FromRoom and ToRoom are false or unbound, no door-attempt info is included.
 % ----------------------------------------------------------------------------
 
 generate_pddl_problem_with_door_attempt(OutputFile, FromRoom, ToRoom) :-
     open(OutputFile, write, Stream),
     
-    % 检查是否有开门动作
+    % Check whether we should include a door-attempt action
     (FromRoom \= false, ToRoom \= false, FromRoom \= _, ToRoom \= _ ->
         HasDoorAttempt = true
     ;
         HasDoorAttempt = false
     ),
     
-    % 写入文件头
+    % Write header
     write(Stream, '(define (problem backrooms_current)'), nl(Stream),
     write(Stream, '  (:domain adversary)'), nl(Stream),
     nl(Stream),
     
-    % 写入对象定义
+    % Write object declarations
     write_objects(Stream),
     nl(Stream),
     
-    % 写入初始状态（包含开门动作）
+    % Write initial state (including door-attempt info)
     write(Stream, '  (:init'), nl(Stream),
     write_initial_state(Stream, HasDoorAttempt, FromRoom, ToRoom),
     write(Stream, '  )'), nl(Stream),
     nl(Stream),
     
-    % 写入目标状态（如果有开门动作，传递信息）
+    % Write goal state (if there is a door-attempt action, pass the info)
     (HasDoorAttempt ->
         write_goal_with_door_attempt(Stream, FromRoom)
     ;
@@ -362,7 +365,7 @@ generate_pddl_problem_with_door_attempt(OutputFile, FromRoom, ToRoom) :-
     close(Stream).
 
 % ----------------------------------------------------------------------------
-% 写入对象定义
+% Write object declarations
 % ----------------------------------------------------------------------------
 
 write_objects(Stream) :-
@@ -374,54 +377,56 @@ write_objects(Stream) :-
     write(Stream, '  )'), nl(Stream).
 
 % ----------------------------------------------------------------------------
-% 写入初始状态
+% Write initial state
 % ----------------------------------------------------------------------------
 
 write_initial_state(Stream) :-
     write_initial_state(Stream, false, _, _).
 
 write_initial_state(Stream, HasDoorAttempt, FromRoom, ToRoom) :-
-    % 写入实体位置
+    % Entity location
     (at_entity(EntityLoc) ->
         write(Stream, '    (at howler '), write(Stream, EntityLoc), write(Stream, ')'), nl(Stream)
     ; true),
     
-    % 写入玩家位置（当前位置）
+    % Player location (current)
     (at_player(PlayerLoc) ->
         write(Stream, '    (at_player player1 '), write(Stream, PlayerLoc), write(Stream, ')'), nl(Stream)
     ; true),
     
-    % 写入房间连接（双向）
+    % Room connections (bidirectional)
     write_connections(Stream),
     
-    % 写入噪音位置（如果有）
+    % Noise location (if present)
     write_noise_locations(Stream),
     
-    % 检查Howler是否已经开始追逐
+    % Check whether the Howler has started chasing
     at_entity(EntityLoc),
     at_player(PlayerLoc),
     (howler_chasing ->
-        % Howler已经开始追逐，设置player_known为玩家当前位置
+        % Howler is chasing: set player_known to the player's current location
         (PlayerLoc \= EntityLoc ->
             write(Stream, '    (player_known player1 '), write(Stream, PlayerLoc), write(Stream, ')'), nl(Stream)
         ; true)
     ;
-        % Howler还没有开始追逐，使用原有逻辑
-        % 只有从howler相连的房间出去，同时方向不是howler所在的房间时，才设置player_known
-        % 如果玩家上一位置在相邻房间，且玩家当前位置不在相邻房间，且玩家当前位置不是Howler所在房间
+        % Howler is not yet chasing: use the original logic.
+        % Only set player_known when leaving a room adjacent to the Howler,
+        % and the move is not into the Howler's room.
+        % If the player's previous location was adjacent, the current location is not adjacent,
+        % and the current location is not the Howler's room.
         (player_previous_location(PlayerPrevLoc),
          PlayerPrevLoc \= PlayerLoc,
          connect(EntityLoc, _, PlayerPrevLoc),
          \+ connect(EntityLoc, _, PlayerLoc),
          PlayerLoc \= EntityLoc ->
-            % 玩家从相邻房间离开，且不是进入Howler所在房间，设置 player_known
+            % Player left an adjacent room and did not enter the Howler's room: set player_known
             write(Stream, '    (player_known player1 '), write(Stream, PlayerPrevLoc), write(Stream, ')'), nl(Stream)
         ; true)
     ),
     
-    % 如果玩家尝试开门，写入开门动作信息
-    % 注意：玩家在相邻房间尝试开门时，Howler不会移动
-    % 只有当玩家从相邻房间离开时，才会触发Howler移动
+    % If the player attempted a door action, write it into the state.
+    % Note: attempting a door action from an adjacent room does not move the Howler.
+    % The Howler only moves when the player leaves an adjacent room.
     (HasDoorAttempt ->
         write(Stream, '    (player_attempted_door player1 '), 
         write(Stream, FromRoom), write(Stream, ' '), 
@@ -429,7 +434,7 @@ write_initial_state(Stream, HasDoorAttempt, FromRoom, ToRoom) :-
     ; true).
 
 % ----------------------------------------------------------------------------
-% 写入房间连接
+% Write room connections
 % ----------------------------------------------------------------------------
 
 write_connections(Stream) :-
@@ -445,7 +450,7 @@ write_connection_pairs(Stream, [From-To|Rest]) :-
     write_connection_pairs(Stream, Rest).
 
 % ----------------------------------------------------------------------------
-% 写入噪音位置（如果丢弃了录音机）
+% Write noise location (if the tape recorder was dropped)
 % ----------------------------------------------------------------------------
 
 write_noise_locations(Stream) :-
@@ -454,65 +459,65 @@ write_noise_locations(Stream) :-
     ; true).
 
 % ----------------------------------------------------------------------------
-% 写入目标状态
+% Write goal state
 % ----------------------------------------------------------------------------
 
 write_goal(Stream) :-
-    % 获取玩家位置和实体位置
+    % Get player and entity locations
     at_player(PlayerLoc),
     at_entity(EntityLoc),
-    % 如果存在有效噪音（录音机诱饵），优先把目标设置为噪音位置
+    % If active noise exists (tape recorder bait), prioritize setting the goal to the noise location
     (active_noise_at(NoiseLoc), NoiseLoc \= EntityLoc ->
         write(Stream, '  (:goal (at howler '), write(Stream, NoiseLoc), write(Stream, '))'), nl(Stream)
     ;
-    % 检查Howler是否已经开始追逐
+    % Check whether the Howler has started chasing
     (howler_chasing ->
-        % Howler已经开始追逐，追逐玩家当前位置
+        % Howler is chasing: chase the player's current location
         (PlayerLoc \= EntityLoc ->
             write(Stream, '  (:goal (at howler '), write(Stream, PlayerLoc), write(Stream, '))'), nl(Stream)
         ;
-            % 已经在同一房间，留在原地
+            % Already in the same room; stay in place
             write(Stream, '  (:goal (at howler '), write(Stream, EntityLoc), write(Stream, '))'), nl(Stream)
         )
     ;
-        % Howler还没有开始追逐，使用原有逻辑
-        % 检查是否有player_known（在write_initial_state中已经设置）
-        % 如果有player_known，则追逐到该位置；否则留在原地
+        % Howler is not yet chasing: use the original logic.
+        % Check whether there is player_known (set in write_initial_state).
+        % If player_known exists, chase that location; otherwise stay in place.
         (player_previous_location(PlayerPrevLoc),
          PlayerPrevLoc \= PlayerLoc,
          connect(EntityLoc, _, PlayerPrevLoc),
          \+ connect(EntityLoc, _, PlayerLoc),
          PlayerLoc \= EntityLoc ->
-            % 玩家从相邻房间离开，且不是进入Howler所在房间，追逐玩家上一位置
+            % Player left an adjacent room and did not enter the Howler's room: chase previous location
             write(Stream, '  (:goal (at howler '), write(Stream, PlayerPrevLoc), write(Stream, '))'), nl(Stream)
         ;
-            % 没有已知的玩家位置，留在原地
+            % No known player location; stay in place
             write(Stream, '  (:goal (at howler '), write(Stream, EntityLoc), write(Stream, '))'), nl(Stream)
         )
     )).
 
 % ----------------------------------------------------------------------------
-% 写入目标状态（当玩家尝试开门时）
+% Write goal state (when the player attempted a door action)
 % ----------------------------------------------------------------------------
 
 write_goal_with_door_attempt(Stream, _PlayerLoc) :-
-    % 当玩家尝试开门时，Howler不会移动（留在原地）
-    % 只有当玩家从相邻房间离开时，才会触发Howler移动
+    % When the player attempts a door action, the Howler does not move (stays put).
+    % The Howler only moves when the player leaves an adjacent room.
     at_entity(EntityLoc),
     write(Stream, '  (:goal (at howler '), write(Stream, EntityLoc), write(Stream, '))'), nl(Stream).
 
 % ----------------------------------------------------------------------------
-% 调用 PDDL 规划器
+% Call the PDDL planner
 % ----------------------------------------------------------------------------
 % call_pddl_planner(+DomainPath, +ProblemPath)
-% 调用外部 PDDL 规划器，生成规划结果
+% Invoke an external PDDL planner and generate a plan output file
 % ----------------------------------------------------------------------------
 
 call_pddl_planner(DomainPath, ProblemPath) :-
     pddl_planner_command(PlannerCmd),
     pddl_plan_path(PlanPath),
     
-    % 检查文件是否存在
+    % Check input files exist
     (exists_file(DomainPath) ->
         true
     ;
@@ -526,13 +531,13 @@ call_pddl_planner(DomainPath, ProblemPath) :-
         fail
     ),
     
-    % 构建规划器命令
-    % 注意：不同规划器的命令格式可能不同
-    % Fast-Forward 格式: ff -o DOMAIN -f PROBLEM > PLAN
-    % 如果规划器不在 PATH 中，可能需要完整路径
+    % Build planner command
+    % Note: different planners may require different command formats.
+    % Fast-Forward format: ff -o DOMAIN -f PROBLEM > PLAN
+    % If the planner is not on PATH, an absolute path may be required.
     atomic_list_concat([PlannerCmd, ' -o ', DomainPath, ' -f ', ProblemPath, ' > ', PlanPath, ' 2>&1'], Command),
     
-    % 执行命令
+    % Execute command
     shell(Command, Status),
     (Status = 0 ->
         write('PDDL planner executed successfully.'), nl
@@ -542,11 +547,11 @@ call_pddl_planner(DomainPath, ProblemPath) :-
     ).
 
 % ----------------------------------------------------------------------------
-% 解析规划结果
+% Parse plan output
 % ----------------------------------------------------------------------------
 % parse_plan_result(+PlanPath, -Actions)
-% 从规划器输出文件中解析动作序列
-% 返回动作列表，每个动作格式为: action(Name, Args)
+% Parse the action sequence from a planner output file.
+% Returns a list of actions, each in the form: action(Name, Args)
 % ----------------------------------------------------------------------------
 
 parse_plan_result(PlanPath, Actions) :-
@@ -556,7 +561,7 @@ parse_plan_result(PlanPath, Actions) :-
     filter_action_lines(Lines, ActionLines),
     parse_action_lines(ActionLines, Actions).
 
-% 读取文件的所有行
+% Read all lines from a file
 read_lines(Stream, Lines) :-
     read_line_to_string(Stream, Line),
     (Line = end_of_file ->
@@ -566,13 +571,13 @@ read_lines(Stream, Lines) :-
         read_lines(Stream, Rest)
     ).
 
-% 过滤出动作行（通常以动作名开头，如 "move", "chase" 等）
+% Filter action lines (usually start with action names like "move", "chase", etc.)
 filter_action_lines([], []).
 filter_action_lines([Line|Rest], Filtered) :-
     (Line = end_of_file ->
         Filtered = []
     ;
-        % 修剪字符串两端的空白字符
+        % Trim whitespace on both ends
         trim_string(Line, Trimmed),
         (is_action_line(Trimmed) ->
             Filtered = [Trimmed|RestFiltered]
@@ -582,9 +587,9 @@ filter_action_lines([Line|Rest], Filtered) :-
         filter_action_lines(Rest, RestFiltered)
     ).
 
-% 判断是否是动作行
-% 不同规划器的输出格式可能不同，这里处理常见格式
-% 格式可能是: "stay ..." 或 "move ..." 或 "chase ..." 或 "0: (move ...)" 或 "(move ...)"
+% Determine whether a line is an action line.
+% Different planners may output different formats; handle common ones here.
+% Possible formats: "stay ...", "move ...", "chase ...", "0: (move ...)", "(move ...)"
 is_action_line(Line) :-
     string_lower(Line, LowerLine),
     (sub_string(LowerLine, _, _, _, "stay") -> true
@@ -592,54 +597,54 @@ is_action_line(Line) :-
     ; sub_string(LowerLine, _, _, _, "chase") -> true
     ; false).
 
-% 解析动作行
+% Parse action lines
 parse_action_lines([], []).
 parse_action_lines([Line|Rest], [Action|Actions]) :-
     parse_action_line(Line, Action),
     parse_action_lines(Rest, Actions).
 
-% 解析单个动作行
-% 格式示例: "move howler electrical_room the_hub"
-% 或: "(move howler electrical_room the_hub)"
-% 或: "0: (move howler electrical_room the_hub) [0]"
+% Parse a single action line.
+% Examples: "move howler electrical_room the_hub"
+%          "(move howler electrical_room the_hub)"
+%          "0: (move howler electrical_room the_hub) [0]"
 parse_action_line(Line, action(Name, Args)) :-
-    % 移除可能的行号前缀（如 "0: "）
-    % 使用 split_string 来分离行号和动作
+    % Remove an optional line-number prefix (e.g. "0: ")
+    % Use split_string to separate the prefix from the action content
     split_string(Line, ":", " ", Parts),
     (Parts = [_Prefix, ActionPart|_] ->
-        % 有行号前缀，使用动作部分
+        % Has a prefix; use the action part
         AfterColon = ActionPart
     ;
-        % 没有行号前缀，使用整行
+        % No prefix; use the full line
         AfterColon = Line
     ),
-    % 移除可能的括号和空白字符
+    % Remove optional parentheses and whitespace
     string_chars(AfterColon, Chars),
     exclude(==('('), Chars, Chars1),
     exclude(==(')'), Chars1, Chars2),
-    % 移除方括号及其内容（如 "[0]"）
+    % Remove brackets and their contents (e.g. "[0]")
     remove_brackets(Chars2, Chars3),
     string_chars(Trimmed, Chars3),
     trim_string(Trimmed, FinalTrimmed),
     split_string(FinalTrimmed, ' ', ' ', Parts2),
-    % 过滤空字符串
+    % Filter out empty strings
     exclude(==(""), Parts2, FilteredParts),
     (FilteredParts = [] ->
-        % 如果没有有效部分，失败
+        % If no valid parts exist, fail
         fail
     ;
         FilteredParts = [NameStr|ArgStrs],
         (ArgStrs = [] ->
             Args = []
         ;
-            % 过滤空字符串
+            % Filter out empty strings
             exclude(==(""), ArgStrs, FilteredArgs),
             maplist(atom_string, Args, FilteredArgs)
         ),
         atom_string(Name, NameStr)
     ).
 
-% 移除方括号及其内容
+% Remove bracketed content
 remove_brackets([], []).
 remove_brackets(['['|Rest], Result) :-
     remove_until_bracket(Rest, Result).
@@ -652,13 +657,13 @@ remove_until_bracket([_|Rest], Result) :-
     remove_until_bracket(Rest, Result).
 
 % ----------------------------------------------------------------------------
-% 应用实体动作
+% Apply entity actions
 % ----------------------------------------------------------------------------
 % apply_entity_actions(+Actions)
-% 根据解析的动作序列更新实体位置
+% Update entity location based on the parsed action sequence
 % ----------------------------------------------------------------------------
 
-% 仅保留当前实现支持的动作（确保“一回合一步”时选择稳定）
+% Keep only actions supported by the current implementation (stable choice for "one step per turn")
 supported_entity_action(action(stay, _)).
 supported_entity_action(action(move, _)).
 supported_entity_action(action(chase, _)).
@@ -673,10 +678,10 @@ filter_supported_actions([_|Rest], Filtered) :-
 
 apply_entity_actions([]).
 apply_entity_actions([action(stay, [_, _])|_Rest]) :-
-    % 留在原地动作不改变位置
+    % Stay action does not change location
     write('The Howler stays in place.'), nl.
 apply_entity_actions([action(move, [_, From, To])|_Rest]) :-
-    % 只执行第一步move动作
+    % Execute only the first move action
     (string(To) ->
         atom_string(ToAtom, To)
     ;
@@ -689,17 +694,17 @@ apply_entity_actions([action(move, [_, From, To])|_Rest]) :-
     ),
     set_entity_location(ToAtom),
     write('The Howler moves from '), write(FromAtom), write(' to '), write(ToAtom), write('.'), nl,
-    % 如果到达噪音位置，噪音诱饵失效
+    % If we reached the noise location, clear the bait
     (active_noise_at(ToAtom) ->
         clear_active_noise,
         write('The noise dies out.'), nl
     ;
         true
     ),
-    % 检查实体是否和玩家在同一房间
+    % Check whether the entity and player are in the same room
     check_entity_player_same_room.
 apply_entity_actions([action(chase, [_, _, To, _])|_Rest]) :-
-    % 兼容旧的chase动作（向后兼容）
+    % Compatibility with the older chase action (backwards compatible)
     (string(To) ->
         atom_string(ToAtom, To)
     ;
@@ -707,47 +712,47 @@ apply_entity_actions([action(chase, [_, _, To, _])|_Rest]) :-
     ),
     set_entity_location(ToAtom),
     write('The Howler chases to '), write(ToAtom), write('.'), nl,
-    % 检查实体是否和玩家在同一房间
+    % Check whether the entity and player are in the same room
     check_entity_player_same_room.
 apply_entity_actions([_|Rest]) :-
-    % 忽略未知动作
+    % Ignore unknown actions
     apply_entity_actions(Rest).
 
 % ----------------------------------------------------------------------------
-% 辅助函数：检查实体和玩家是否在同一房间
+% Helper: check whether the entity and player are in the same room
 % ----------------------------------------------------------------------------
 
 check_entity_player_same_room :-
     at_player(PlayerLoc),
     at_entity(EntityLoc),
     PlayerLoc = EntityLoc,
-    check_lose,  % 如果在同一房间，触发游戏结束
+    check_lose,  % If in the same room, trigger game over
     !.
-check_entity_player_same_room.  % 如果不在同一房间，继续执行
+check_entity_player_same_room.  % If not in the same room, continue
 
 % ----------------------------------------------------------------------------
-% 辅助函数：检查文件是否存在
+% Helper: check whether a file exists
 % ----------------------------------------------------------------------------
 
 exists_file(File) :-
     access_file(File, read).
 
 % ----------------------------------------------------------------------------
-% 辅助函数：字符串处理
+% Helper: string utilities
 % ----------------------------------------------------------------------------
 
-% 修剪字符串两端的空白字符
-% 使用 normalize_space 来标准化空白字符，然后手动移除首尾空白
+% Trim whitespace at both ends.
+% Uses normalize_space to normalize whitespace, then manually removes leading/trailing spaces.
 trim_string(String, Trimmed) :-
-    % 先标准化空白字符（将多个连续空白替换为单个空格）
+    % First normalize whitespace (collapse multiple spaces into one)
     normalize_space(string(Normalized), String),
-    % 移除首尾空白
+    % Remove leading/trailing whitespace
     string_chars(Normalized, Chars),
     trim_chars_left(Chars, Chars1),
     trim_chars_right(Chars1, TrimmedChars),
     string_chars(Trimmed, TrimmedChars).
 
-% 移除左侧空白字符
+% Remove leading whitespace characters
 trim_chars_left([], []).
 trim_chars_left([H|T], Result) :-
     (char_type(H, space) ->
@@ -756,7 +761,7 @@ trim_chars_left([H|T], Result) :-
         Result = [H|T]
     ).
 
-% 移除右侧空白字符
+% Remove trailing whitespace characters
 trim_chars_right([], []).
 trim_chars_right(List, Result) :-
     reverse(List, Reversed),
@@ -764,28 +769,28 @@ trim_chars_right(List, Result) :-
     reverse(TrimmedReversed, Result).
 
 % ----------------------------------------------------------------------------
-% 简单实体移动逻辑（降级方案）
-% 当 PDDL 规划器不可用时使用
+% Simple entity movement logic (fallback)
+% Used when the PDDL planner is unavailable
 % ----------------------------------------------------------------------------
 % update_entity_towards_player/0
-% 使用简单的 Prolog 规则实现实体朝着玩家当前位置移动
-% 机制：找到从Howler当前位置到玩家当前位置的最短路径，然后移动一步
+% Uses simple Prolog rules to move the entity toward the player's current location
+% Mechanism: find the shortest path from the Howler to the player, then move one step
 % ----------------------------------------------------------------------------
 
 update_entity_towards_player :-
     at_entity(EntityLoc),
     at_player(PlayerLoc),
     (EntityLoc = PlayerLoc ->
-        % 已经在同一房间，检查是否触发游戏结束
+        % Already in the same room; check whether to trigger game over
         check_entity_player_same_room
     ;
-        % 不在同一房间，找到最短路径并移动一步
+        % Not in the same room; find the shortest path and move one step
         (find_path_to_player(EntityLoc, PlayerLoc, NextRoom) ->
             set_entity_location(NextRoom),
             write('The Howler moves towards you!'), nl,
             check_entity_player_same_room
         ;
-            % 无法找到路径，保持原位置
+            % No path found; keep current location
             write('The Howler cannot find a path to you.'), nl
         )
     ),
@@ -793,42 +798,42 @@ update_entity_towards_player :-
 
 % ----------------------------------------------------------------------------
 % update_entity_simple/0
-% 使用简单的 Prolog 规则实现实体追逐玩家
-% 机制：如果玩家在相邻房间，实体移动到玩家所在的房间
+% Use simple Prolog rules for the entity to chase the player
+% Mechanism: if the player is in an adjacent room, move into the player's room
 % ----------------------------------------------------------------------------
 
 update_entity_simple :-
     at_entity(EntityLoc),
     at_player(PlayerLoc),
     player_previous_location(PlayerPrevLoc),
-    % 检查玩家位置是否真的改变了（只有移动命令才会改变位置）
+    % Check whether the player's location actually changed (only move changes it)
     (PlayerLoc = PlayerPrevLoc ->
-        % 玩家位置没有改变（例如执行了 look 命令），不更新实体
+        % Player location did not change (e.g. look); do not update entity
         true
     ;
-        % 玩家位置改变了，检查实体是否需要移动
+        % Player location changed; check whether the entity should move
         (EntityLoc = PlayerLoc ->
-            % 实体和玩家在同一房间，触发游戏结束
+            % Entity and player are in the same room; trigger game over
             check_entity_player_same_room
         ;
-            % 检查玩家上一回合的位置是否在相邻房间
-            % 这样实体会在玩家移动后的下一回合才开始追逐
+            % Check whether the player's previous location was adjacent
+            % This makes the entity start chasing on the turn after the player moves
             (connect(EntityLoc, _, PlayerPrevLoc) ->
-                % 玩家上一回合在相邻房间，实体移动到玩家上一回合的位置
-                % 因为玩家已经移动了，所以实体移动到玩家上一回合的位置
+                % Player was adjacent last turn; move the entity to the player's previous location
+                % Since the player already moved, chase their last-known adjacent location
                 set_entity_location(PlayerPrevLoc),
                 write('The Howler heard you and moves towards where you were!'), nl,
-                % 检查实体是否和玩家在同一房间
+                % Check whether the entity and player are in the same room
                 check_entity_player_same_room
             ;
-                % 玩家上一回合不在相邻房间，尝试找到通往玩家上一位置的路径
+                % Player was not adjacent last turn; try to find a path to the player's previous location
                 (find_path_to_player(EntityLoc, PlayerPrevLoc, NextRoom) ->
                     set_entity_location(NextRoom),
                     write('The Howler is searching...'), nl,
-                    % 检查实体是否和玩家在同一房间
+                    % Check whether the entity and player are in the same room
                     check_entity_player_same_room
                 ;
-                    % 无法找到路径，保持原位置
+                    % No path found; keep current location
                     true
                 )
             )
@@ -836,7 +841,7 @@ update_entity_simple :-
     ),
     !.
 
-% 找到通往玩家的路径（简单的广度优先搜索）
+% Find a path to the player (simple breadth-first search)
 find_path_to_player(From, To, NextRoom) :-
     find_path_to_player_bfs([From], To, [], Path),
     (Path = [From, NextRoom|_] -> true; false).

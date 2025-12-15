@@ -1,8 +1,8 @@
 % ============================================================================
 % http_server.pl
 % ============================================================================
-% HTTP Server 模块：提供 REST API 接口
-% 前端由 nginx 提供，此服务器仅负责 API 服务
+% HTTP server module: provides REST API endpoints.
+% The frontend is served by nginx; this server only handles the API.
 % ============================================================================
 
 :- module(game_http_server, [
@@ -10,7 +10,8 @@
     start_server/1
 ]).
 
-% 注意：不使用 http_server 库，因为它与我们的模块名冲突
+% Note: do not use the http_server module here because it conflicts with our
+% module name.
 % :- use_module(library(http/http_server)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_json)).
@@ -22,14 +23,14 @@
 :- use_module(pddl_interface).
 
 % ----------------------------------------------------------------------------
-% 服务器配置
+% Server configuration
 % ----------------------------------------------------------------------------
 
-% 默认端口
+% Default port
 default_port(8080).
 
 % ----------------------------------------------------------------------------
-% 启动服务器
+% Start server
 % ----------------------------------------------------------------------------
 
 start_server :-
@@ -37,66 +38,67 @@ start_server :-
     start_server(Port).
 
 start_server(Port) :-
-    % 注册 API 路由
+    % Register API routes
     http_handler(root(api/status), api_status, [method(get)]),
     http_handler(root(api/init), api_init, [method(post)]),
     http_handler(root(api/command), api_command, [method(post)]),
     http_handler(root(api/map), api_map, [method(get)]),
     http_handler(root(api/rooms), api_room_info, [method(get), prefix]),
     
-    % 启动服务器（绑定到 0.0.0.0 以允许外部访问）
+    % Start server (bind to 0.0.0.0 to allow external access)
     use_module(library(http/http_server)),
-    % 使用 Host:Port 格式绑定到所有接口
+    % Bind to all interfaces using Host:Port
     Address = '0.0.0.0':Port,
     http_server([port(Address)]),
     format('API server started on port ~w~n', [Port]),
     format('Server listening on 0.0.0.0:~w~n', [Port]),
     format('API endpoints available at http://0.0.0.0:~w/api/*~n', [Port]),
     format('Frontend should be served by nginx~n', []),
-    % 保持服务器运行
+    % Keep server running
     thread_get_message(_).
 
 % ----------------------------------------------------------------------------
-% API: 获取游戏状态
+% API: Get game status
 % GET /api/status
 % ----------------------------------------------------------------------------
 
 api_status(_Request) :-
-    % 获取玩家位置
+    % Get player location
     (at_player(PlayerLoc) -> PlayerLocation = PlayerLoc; PlayerLocation = null),
     
-    % 获取实体位置
+    % Get entity location
     (at_entity(EntityLoc) -> EntityLocation = EntityLoc; EntityLocation = null),
     
-    % 获取理智值
+    % Get sanity
     (sanity(Sanity) -> SanityValue = Sanity; SanityValue = 100),
     
-    % 获取持有物品
-    % 注意：不要在这里用 holding(Item) 直接绑定 Item，
-    % 否则会影响后面 items_here 的 findall(Item, ...)（变量复用导致误判房间无物品）。
-    % 统一用列表返回，前端已做数组/单值兼容处理。
+    % Get held items (inventory)
+    % Note: do NOT bind Item via holding(Item) here.
+    % It would interfere with the later findall(..., item_location(...)) due to
+    % variable reuse and can incorrectly report "no items in room".
+    % Always return a list; the frontend already handles list/singleton cases.
     findall(HeldItem, holding(HeldItem), HoldingItems),
     
-    % 获取当前房间的物品
+    % Get items in the current room
     (PlayerLocation \= null ->
         findall(RoomItem, item_location(RoomItem, PlayerLocation), ItemsHere)
     ;
         ItemsHere = []
     ),
     
-    % 获取当前房间的出口
+    % Get exits from the current room
     (PlayerLocation \= null ->
         findall(json{direction: Dir, to: Room}, connect(PlayerLocation, Dir, Room), Exits)
     ;
         Exits = []
     ),
     
-    % 检查游戏状态
+    % Determine game status
     (check_win_condition -> GameStatus = win
     ; check_lose_condition -> GameStatus = lose
     ; GameStatus = playing),
     
-    % 构建响应
+    % Build response
     Reply = json{
         player_location: PlayerLocation,
         entity_location: EntityLocation,
@@ -110,12 +112,12 @@ api_status(_Request) :-
     cors_reply_json(Reply).
 
 % ----------------------------------------------------------------------------
-% API: 初始化游戏
+% API: Initialize game
 % POST /api/init
 % ----------------------------------------------------------------------------
 
 api_init(_Request) :-
-    % 捕获 init_game_state 的输出，避免干扰 HTTP 响应
+    % Capture init_game_state output to avoid polluting the HTTP response
     with_output_to(string(_), init_game_state),
     Reply = json{
         success: true,
@@ -124,32 +126,32 @@ api_init(_Request) :-
     cors_reply_json(Reply).
 
 % ----------------------------------------------------------------------------
-% API: 执行游戏命令
+% API: Execute game command
 % POST /api/command
-% Body: {"command": "move(east)"} 或 {"command": "look"}
+% Body: {"command": "move(east)"} or {"command": "look"}
 % ----------------------------------------------------------------------------
 
 api_command(Request) :-
     http_read_json_dict(Request, CommandDict),
     get_dict(command, CommandDict, CommandStr),
     
-    % 解析命令字符串
+    % Parse command string
     catch(
         term_string(Command, CommandStr),
         _,
         (Command = CommandStr)
     ),
     
-    % 捕获输出（包括命令执行和实体更新）
+    % Capture output (command execution + entity update)
     with_output_to(string(Output), (
         process_command_with_output(Command, Success),
-        % 检查游戏是否已经结束（在实体更新之前）
+        % Check if the game is already over (before entity update)
         (is_game_over ->
-            % 游戏已结束，不更新实体
+            % Game is over; do not update entity
             true
         ;
-            % 更新实体位置
-            % 如果Howler已经开始追逐，所有玩家动作都会触发Howler移动
+            % Update entity position
+            % If the Howler is chasing, any player action triggers Howler movement
             (howler_chasing ->
                 catch(
                     update_entity_from_pddl,
@@ -157,8 +159,9 @@ api_command(Request) :-
                     (format('Error updating entity: ~w~n', [Error]))
                 )
             ;
-                % Howler还没有开始追逐，使用原有逻辑
-                % 如果命令成功，或者命令是move但失败了（玩家尝试移动但被阻止，Howler也应该行动）
+                % If the Howler is not yet chasing, use the original logic.
+                % If the command succeeds, or if it's a move attempt that fails
+                % (the player tried to move but was blocked), the Howler should still act.
                 (Success = true -> 
                     catch(
                         update_entity_from_pddl,
@@ -166,7 +169,7 @@ api_command(Request) :-
                         (format('Error updating entity: ~w~n', [Error]))
                     )
                 ; 
-                    % 命令失败，但如果是move命令，玩家尝试了移动，Howler也应该行动
+                    % Command failed, but if it's a move attempt, the Howler should still act
                     (Command = move(Direction) ->
                         catch(
                             update_entity_on_failed_move(Direction),
@@ -181,12 +184,12 @@ api_command(Request) :-
         )
     )),
     
-    % 检查游戏状态
+    % Determine game status
     (check_win_condition -> GameStatus = win
     ; check_lose_condition -> GameStatus = lose
     ; GameStatus = playing),
     
-    % 获取更新后的状态
+    % Get updated state
     (at_player(PlayerLoc) -> PlayerLocation = PlayerLoc; PlayerLocation = null),
     (at_entity(EntityLoc) -> EntityLocation = EntityLoc; EntityLocation = null),
     (sanity(S) -> SanityValue = S; SanityValue = 100),
@@ -196,14 +199,14 @@ api_command(Request) :-
         HoldingItemList = []
     ),
     
-    % 获取当前房间的物品
+    % Get items in the current room
     (PlayerLocation \= null ->
         findall(Item, item_location(Item, PlayerLocation), ItemsHere)
     ;
         ItemsHere = []
     ),
     
-    % 获取当前房间的出口
+    % Get exits from the current room
     (PlayerLocation \= null ->
         findall(json{direction: Dir, to: Room}, connect(PlayerLocation, Dir, Room), Exits)
     ;
@@ -225,22 +228,22 @@ api_command(Request) :-
     cors_reply_json(Reply).
 
 % ----------------------------------------------------------------------------
-% API: 获取地图信息
+% API: Get map data
 % GET /api/map
 % ----------------------------------------------------------------------------
 
 api_map(_Request) :-
-    % 获取所有房间
+    % Get all rooms
     findall(Room, room(Room), Rooms),
     
-    % 获取所有连接
+    % Get all connections
     findall(
         json{from: From, direction: Dir, to: To},
         connect(From, Dir, To),
         Connections
     ),
     
-    % 获取房间属性
+    % Get room properties
     findall(Room, is_dark(Room), DarkRooms),
     findall(Room, is_exit(Room), ExitRooms),
     
@@ -254,7 +257,7 @@ api_map(_Request) :-
     cors_reply_json(Reply).
 
 % ----------------------------------------------------------------------------
-% API: 获取房间信息
+% API: Get room info
 % GET /api/rooms/:room
 % ----------------------------------------------------------------------------
 
@@ -267,13 +270,13 @@ api_room_info(Request) :-
     ),
     
     (room(Room) ->
-        % 获取房间连接
+        % Get room exits
         findall(json{direction: Dir, to: RoomTo}, connect(Room, Dir, RoomTo), Exits),
         
-        % 获取房间物品
+        % Get room items
         findall(Item, item_location(Item, Room), Items),
         
-        % 获取房间属性
+        % Get room properties
         (is_dark(Room) -> IsDark = true; IsDark = false),
         (is_exit(Room) -> IsExit = true; IsExit = false),
         
@@ -293,7 +296,7 @@ api_room_info(Request) :-
     cors_reply_json(Reply).
 
 % ----------------------------------------------------------------------------
-% 辅助函数：处理命令并捕获输出
+% Helper: process command and capture output
 % ----------------------------------------------------------------------------
 
 process_command_with_output(Command, Success) :-
@@ -310,7 +313,7 @@ process_command_with_output(Command, Success) :-
     ).
 
 % ----------------------------------------------------------------------------
-% 命令处理（从 main.pl 复制）
+% Command processing (copied from main.pl)
 % ----------------------------------------------------------------------------
 
 process_command(move(Direction)) :-
@@ -332,20 +335,20 @@ process_command(_) :-
     write('Unknown command. Try: move(direction), take(item), drop(item), use(item), look.'), nl.
 
 % ----------------------------------------------------------------------------
-% 检查游戏状态（不输出消息）
+% Check game status (no output messages)
 % ----------------------------------------------------------------------------
 
 check_win_condition :-
-    % 首先检查游戏是否已经结束（通过游戏状态标志）
+    % First check whether the game has already ended (via status flag)
     game_over_status(win),
     !.
 check_win_condition :-
     at_player(manila_room),
     is_exit(manila_room),
-    holding(key).  % 必须持有钥匙才能获胜
+    holding(key).  % Must be holding the key to win
 
 check_lose_condition :-
-    % 首先检查游戏是否已经结束（通过游戏状态标志）
+    % First check whether the game has already ended (via status flag)
     game_over_status(Status),
     (Status = lose_sanity; Status = lose_caught),
     !.
@@ -359,7 +362,7 @@ check_lose_condition :-
     PlayerLoc = EntityLoc.
 
 % ----------------------------------------------------------------------------
-% CORS 支持
+% CORS support
 % ----------------------------------------------------------------------------
 
 cors_reply_json(JSON) :-

@@ -1,13 +1,14 @@
 version: '3.8'
 
 services:
-  # 统一的游戏服务（包含 SWI-Prolog 和 PDDL4J）
+  # Unified game service (includes SWI-Prolog and PDDL4J)
   game:
     build:
       context: .
       dockerfile: Dockerfile.game
-      # 代理配置（可选，如果代理不可用可以注释掉或留空）
-      # 注意：如果代理只监听 127.0.0.1，容器无法访问，需要配置代理监听 0.0.0.0:7890
+      # Proxy config (optional; comment out or leave empty if unavailable)
+      # Note: if the proxy only listens on 127.0.0.1, containers can't reach it.
+      # Configure the proxy to listen on 0.0.0.0:7890 if needed.
       args:
         HTTP_PROXY: ""
         HTTPS_PROXY: ""

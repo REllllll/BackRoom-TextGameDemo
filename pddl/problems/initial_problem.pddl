@@ -2,24 +2,24 @@
   ;; =========================================================================
   ;; initial_problem.pddl
   ;; =========================================================================
-  ;; 初始问题文件模板
-  ;; 包含初始状态和目标状态
-  ;; 注意：实际游戏运行时，此文件会被动态生成
+  ;; Initial problem file template
+  ;; Contains the initial state and goal state
+  ;; Note: during gameplay, this file is generated dynamically
   ;; =========================================================================
 
   (:domain adversary)
 
   ;; -------------------------------------------------------------------------
-  ;; 对象定义 (Object Definitions)
+  ;; Object definitions
   ;; -------------------------------------------------------------------------
   (:objects
-    ; 实体
+    ; Entity
     howler - entity
     
-    ; 玩家
+    ; Player
     player1 - player
     
-    ; 房间位置
+    ; Locations
     start_point - location
     yellow_hallway - location
     dark_corridor - location
@@ -31,16 +31,16 @@
   )
 
   ;; -------------------------------------------------------------------------
-  ;; 初始状态 (Initial State)
+  ;; Initial state
   ;; -------------------------------------------------------------------------
   (:init
-    ; 实体初始位置
+    ; Initial entity position
     (at howler electrical_room)
     
-    ; 玩家初始位置（会在运行时更新）
+    ; Initial player position (updated at runtime)
     (at_player player1 start_point)
     
-    ; 房间连接关系（双向）
+    ; Room connections (bidirectional)
     (connected start_point yellow_hallway)
     (connected yellow_hallway start_point)
     (connected yellow_hallway dark_corridor)
@@ -58,7 +58,7 @@
   )
 
   ;; -------------------------------------------------------------------------
-  ;; 目标状态 (Goal State)
+  ;; Goal state
   ;; -------------------------------------------------------------------------
   (:goal (or
     (trapped player1)
@@ -66,7 +66,7 @@
   ))
 
   ;; -------------------------------------------------------------------------
-  ;; 优化指标（可选）
+  ;; Optimization metric (optional)
   ;; -------------------------------------------------------------------------
   ;; (:metric minimize (total-cost))
 )
