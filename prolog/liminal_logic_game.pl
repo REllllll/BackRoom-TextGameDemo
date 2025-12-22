@@ -1,15 +1,15 @@
 % ============================================================================
-% main.pl
+% liminal_logic_game.pl
 % ============================================================================
 % Main entry point: wires modules together, runs the game loop, and integrates
 % with the PDDL planner.
 % ============================================================================
 
-:- use_module(knowledge_base).
-:- use_module(game_state).
-:- use_module(game_logic).
-:- use_module(win_conditions).
-:- use_module(pddl_interface).
+:- use_module(liminal_logic_knowledge_base).
+:- use_module(liminal_logic_game_state).
+:- use_module(liminal_logic_game_logic).
+:- use_module(liminal_logic_win_conditions).
+:- use_module(liminal_logic_pddl_interface).
 
 % ----------------------------------------------------------------------------
 % Main Game Loop
@@ -98,5 +98,5 @@ update_entity :-
 % Helper Functions
 % ----------------------------------------------------------------------------
 
-% PDDL-related logic has been moved to the pddl_interface.pl module
+% PDDL-related logic has been moved to the liminal_logic_pddl_interface.pl module
 

@@ -16,11 +16,11 @@
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_json)).
 :- use_module(library(http/http_cors)).
-:- use_module(knowledge_base).
-:- use_module(game_state).
-:- use_module(game_logic).
-:- use_module(win_conditions).
-:- use_module(pddl_interface).
+:- use_module(liminal_logic_knowledge_base).
+:- use_module(liminal_logic_game_state).
+:- use_module(liminal_logic_game_logic).
+:- use_module(liminal_logic_win_conditions).
+:- use_module(liminal_logic_pddl_interface).
 
 % ----------------------------------------------------------------------------
 % Server configuration
@@ -313,7 +313,7 @@ process_command_with_output(Command, Success) :-
     ).
 
 % ----------------------------------------------------------------------------
-% Command processing (copied from main.pl)
+% Command processing (copied from liminal_logic_game.pl)
 % ----------------------------------------------------------------------------
 
 process_command(move(Direction)) :-

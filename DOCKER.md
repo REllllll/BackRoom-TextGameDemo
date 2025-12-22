@@ -43,7 +43,7 @@ Dev mode keeps an interactive container running for iteration and debugging.
 
 ```bash
 ./scripts/dev.sh run swipl --version
-./scripts/dev.sh run swipl -s prolog/main.pl -g start
+./scripts/dev.sh run swipl -s prolog/liminal_logic_game.pl -g start
 ./scripts/dev.sh run ff --help
 ```
 

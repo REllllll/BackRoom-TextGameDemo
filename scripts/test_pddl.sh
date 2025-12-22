@@ -50,7 +50,7 @@ elif command -v fast-downward.py &> /dev/null; then
     echo "    Path: $FD_PATH"
 else
     echo -e "${YELLOW}  ⚠ No common PDDL planner found (ff, fast-downward)${NC}"
-    echo "    Hint: if you use a different planner, configure it in pddl_interface.pl"
+    echo "    Hint: if you use a different planner, configure it in liminal_logic_pddl_interface.pl"
 fi
 echo ""
 
@@ -78,11 +78,11 @@ echo ""
 
 # Check 4: Prolog module files
 echo -e "${YELLOW}[Check 4] Prolog module files${NC}"
-PDDL_INTERFACE="$PROJECT_ROOT/prolog/pddl_interface.pl"
+PDDL_INTERFACE="$PROJECT_ROOT/prolog/liminal_logic_pddl_interface.pl"
 if [ -f "$PDDL_INTERFACE" ]; then
-    echo -e "${GREEN}  ✓ pddl_interface.pl exists${NC}"
+    echo -e "${GREEN}  ✓ liminal_logic_pddl_interface.pl exists${NC}"
 else
-    echo -e "${RED}  ✗ pddl_interface.pl does not exist${NC}"
+    echo -e "${RED}  ✗ liminal_logic_pddl_interface.pl does not exist${NC}"
     exit 1
 fi
 echo ""

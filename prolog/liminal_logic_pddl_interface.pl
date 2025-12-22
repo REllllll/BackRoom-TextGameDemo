@@ -1,5 +1,5 @@
 % ============================================================================
-% pddl_interface.pl
+% liminal_logic_pddl_interface.pl
 % ============================================================================
 % Interface module between Prolog and PDDL.
 % Responsibilities:
@@ -24,9 +24,9 @@
     project_root/1
 ]).
 
-:- use_module(game_state).
-:- use_module(knowledge_base).
-:- use_module(win_conditions).
+:- use_module(liminal_logic_game_state).
+:- use_module(liminal_logic_knowledge_base).
+:- use_module(liminal_logic_win_conditions).
 
 % ----------------------------------------------------------------------------
 % Path configuration
@@ -48,7 +48,7 @@ pddl_plan_path('pddl/problems/plan.txt').
 pddl_planner_command('ff').
 
 % Get the absolute project root path.
-% Derived from the location of pddl_interface.pl so it works regardless of cwd.
+% Derived from the location of liminal_logic_pddl_interface.pl so it works regardless of cwd.
 project_root(Root) :-
     % Use source_file to get the module file path (most reliable)
     (source_file(pddl_interface:project_root(_), ModuleFile) ->

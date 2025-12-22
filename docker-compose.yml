@@ -20,7 +20,7 @@ services:
     working_dir: /workspace
     stdin_open: true
     tty: true
-    command: swipl -s prolog/main.pl -g start
+    command: swipl -s prolog/liminal_logic_game.pl -g start
     networks:
       - liminal-network
    

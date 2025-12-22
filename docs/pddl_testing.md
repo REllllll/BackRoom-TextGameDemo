@@ -36,7 +36,7 @@ Or from the Prolog REPL:
 
 ### Planner not found
 
-Ensure the configured planner command (default: `ff`) is available in `PATH`, or set an absolute path in `prolog/pddl_interface.pl`.
+Ensure the configured planner command (default: `ff`) is available in `PATH`, or set an absolute path in `prolog/liminal_logic_pddl_interface.pl`.
 
 ### No plan generated
 

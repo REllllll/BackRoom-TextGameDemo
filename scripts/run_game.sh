@@ -57,15 +57,15 @@ if [ "$IS_IN_CONTAINER" = true ]; then
     fi
 
     # Check entry file
-    if [ ! -f "prolog/main.pl" ]; then
-        echo -e "${RED}Error: prolog/main.pl not found.${NC}"
+    if [ ! -f "prolog/liminal_logic_game.pl" ]; then
+        echo -e "${RED}Error: prolog/liminal_logic_game.pl not found.${NC}"
         exit 1
     fi
 
     echo -e "${YELLOW}Starting game...${NC}"
     echo ""
 
-    swipl -s prolog/main.pl -g start -t halt
+    swipl -s prolog/liminal_logic_game.pl -g start -t halt
 
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 0 ]; then
@@ -104,7 +104,7 @@ if [ -z "$DOCKER_COMPOSE" ]; then
     if command -v swipl &> /dev/null; then
         echo -e "${YELLOW}Docker compose not available; falling back to local SWI-Prolog...${NC}"
         echo ""
-        swipl -s prolog/main.pl -g start -t halt
+        swipl -s prolog/liminal_logic_game.pl -g start -t halt
         EXIT_CODE=$?
         if [ $EXIT_CODE -eq 0 ]; then
             echo ""
@@ -144,7 +144,7 @@ echo -e "${YELLOW}Starting game...${NC}"
 echo ""
 
 # Run the Prolog game in the container (repo convention: use dev.sh run)
-./scripts/dev.sh run swipl -s prolog/main.pl -g start -t halt
+./scripts/dev.sh run swipl -s prolog/liminal_logic_game.pl -g start -t halt
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then

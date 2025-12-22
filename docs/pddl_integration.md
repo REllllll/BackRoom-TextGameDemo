@@ -1,10 +1,10 @@
 # Prolog <-> PDDL Integration
 
-This document describes how `prolog/pddl_interface.pl` connects Prolog game state to a PDDL planner.
+This document describes how `prolog/liminal_logic_pddl_interface.pl` connects Prolog game state to a PDDL planner.
 
 ## What the module does
 
-`pddl_interface.pl` provides:
+`liminal_logic_pddl_interface.pl` provides:
 
 1. **Problem generation**: serialize current Prolog game state into a PDDL problem file
 2. **Planner invocation**: run an external PDDL planner (Fast-Forward style supported)

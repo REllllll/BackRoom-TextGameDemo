@@ -1,5 +1,5 @@
 % ============================================================================
-% game_logic.pl
+% liminal_logic_game_logic.pl
 % ============================================================================
 % Game logic: implements player commands and rule reasoning.
 % Includes commands such as: move, take, drop, use, etc.
@@ -17,9 +17,9 @@
     can_enter_room/1
 ]).
 
-:- use_module(game_state).
-:- use_module(knowledge_base).
-:- use_module(win_conditions).
+:- use_module(liminal_logic_game_state).
+:- use_module(liminal_logic_knowledge_base).
+:- use_module(liminal_logic_win_conditions).
 
 % ----------------------------------------------------------------------------
 % Move Command

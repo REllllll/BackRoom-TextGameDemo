@@ -19,13 +19,13 @@ You have noclipped out of reality into **Level 0**. Find the **Manila Room** and
 BackRoom-TextGameDemo/
 ├── README.md
 ├── prolog/
-│   ├── knowledge_base.pl          # Static world facts (rooms, connections, items)
-│   ├── game_state.pl              # Dynamic state (player/entity position, sanity, inventory)
-│   ├── game_logic.pl              # Commands + rules (move/take/drop/use/look)
-│   ├── win_conditions.pl          # Win/lose checks
-│   ├── pddl_interface.pl          # Prolog <-> PDDL integration
+│   ├── liminal_logic_knowledge_base.pl  # Static world facts (rooms, connections, items)
+│   ├── liminal_logic_game_state.pl      # Dynamic state (player/entity position, sanity, inventory)
+│   ├── liminal_logic_game_logic.pl     # Commands + rules (move/take/drop/use/look)
+│   ├── liminal_logic_win_conditions.pl # Win/lose checks
+│   ├── liminal_logic_pddl_interface.pl # Prolog <-> PDDL integration
 │   ├── http_server.pl             # REST API server for the playground UI
-│   └── main.pl                    # CLI game entry point
+│   └── liminal_logic_game.pl      # CLI game entry point
 ├── pddl/
 │   ├── domains/
 │   │   └── adversary_domain.pddl  # Adversary domain definition
@@ -71,7 +71,7 @@ Enter the container:
 Run the CLI game inside the container:
 
 ```bash
-swipl -s prolog/main.pl -g start
+swipl -s prolog/liminal_logic_game.pl -g start
 ```
 
 ## Run (host): launcher script

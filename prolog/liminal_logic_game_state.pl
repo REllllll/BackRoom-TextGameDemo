@@ -1,5 +1,5 @@
 % ============================================================================
-% game_state.pl
+% liminal_logic_game_state.pl
 % ============================================================================
 % Dynamic state management: runtime facts for the game.
 % Includes: player location, entity location, sanity, held items, etc.

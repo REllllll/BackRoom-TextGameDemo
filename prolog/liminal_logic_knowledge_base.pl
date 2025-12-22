@@ -1,5 +1,5 @@
 % ============================================================================
-% knowledge_base.pl
+% liminal_logic_knowledge_base.pl
 % ============================================================================
 % Static knowledge base: defines static facts about the game world.
 % Includes: room definitions, room connections, item properties, etc.

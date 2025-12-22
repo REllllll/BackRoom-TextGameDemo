@@ -1,5 +1,5 @@
 % ============================================================================
-% win_conditions.pl
+% liminal_logic_win_conditions.pl
 % ============================================================================
 % Win/lose conditions: defines game end conditions.
 % ============================================================================
@@ -10,8 +10,8 @@
     game_over/1
 ]).
 
-:- use_module(game_state).
-:- use_module(knowledge_base).
+:- use_module(liminal_logic_game_state).
+:- use_module(liminal_logic_knowledge_base).
 
 % ----------------------------------------------------------------------------
 % Win Condition Check
